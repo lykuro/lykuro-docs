@@ -1,0 +1,88 @@
+---
+id: embeddings
+title: 埋め込み（Embeddings）
+sidebar_position: 5
+description: テキストをベクトル化して類似度検索する（Python / TypeScript / cURL）
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# 埋め込み（Embeddings）
+
+`text-embedding-v4`（Alibaba）でテキストをベクトル化できます。OpenAI Embeddings API と互換です。
+RAG・意味検索・クラスタリングなどに利用します。
+
+<Tabs groupId="lang">
+<TabItem value="python" label="Python">
+
+```python
+import os
+import numpy as np
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ["LYKURO_API_KEY"],
+    base_url="https://api.lykuro.ai/alibaba/compatible-mode/v1",
+)
+
+texts = ["猫はかわいい動物です。", "犬は忠実なペットです。", "株価が下落した。"]
+resp = client.embeddings.create(model="text-embedding-v4", input=texts)
+vectors = [np.array(d.embedding) for d in resp.data]
+
+def cosine(a, b):
+    return a @ b / (np.linalg.norm(a) * np.linalg.norm(b))
+
+# 「猫」と「犬」、「猫」と「株価」の類似度を比較
+print("猫 vs 犬   :", cosine(vectors[0], vectors[1]))
+print("猫 vs 株価 :", cosine(vectors[0], vectors[2]))
+```
+
+</TabItem>
+<TabItem value="ts" label="TypeScript">
+
+```typescript
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.LYKURO_API_KEY,
+  baseURL: "https://api.lykuro.ai/alibaba/compatible-mode/v1",
+});
+
+const texts = ["猫はかわいい動物です。", "犬は忠実なペットです。", "株価が下落した。"];
+const resp = await client.embeddings.create({ model: "text-embedding-v4", input: texts });
+const vectors = resp.data.map((d) => d.embedding);
+
+const cosine = (a: number[], b: number[]) => {
+  const dot = a.reduce((s, v, i) => s + v * b[i], 0);
+  const na = Math.hypot(...a);
+  const nb = Math.hypot(...b);
+  return dot / (na * nb);
+};
+
+console.log("猫 vs 犬   :", cosine(vectors[0], vectors[1]));
+console.log("猫 vs 株価 :", cosine(vectors[0], vectors[2]));
+```
+
+</TabItem>
+<TabItem value="curl" label="cURL">
+
+```bash
+curl https://api.lykuro.ai/alibaba/compatible-mode/v1/embeddings \
+  -H "Authorization: Bearer $LYKURO_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "text-embedding-v4",
+    "input": ["猫はかわいい動物です。", "犬は忠実なペットです。"]
+  }'
+```
+
+レスポンスの `data[].embedding` がベクトルです。
+
+</TabItem>
+</Tabs>
+
+:::note ベクトルDBとの併用
+取得したベクトルは pgvector / Qdrant / Pinecone などに格納して類似検索に使えます。
+インデックス作成時と検索時で**同じモデル**（`text-embedding-v4`）を使ってください。
+:::

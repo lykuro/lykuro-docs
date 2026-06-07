@@ -1,0 +1,164 @@
+---
+id: error-handling
+title: エラー処理・リトライ
+sidebar_position: 7
+description: 本番向けの堅牢なエラー処理・リトライ・フォールバック（Python / TypeScript / Go）
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# エラー処理・リトライ
+
+本番運用では、レート制限（429）・一時的な上流障害（5xx）・残高不足（402）を適切に扱う必要があります。
+上流の 4xx / 5xx は**そのまま透過**され、Lykuro が上流へ到達できない時のみ `502` を返します。
+
+## 主なステータスコード
+
+| コード | 意味 | 対応 |
+|---|---|---|
+| `401` | APIキー不正 | リトライ不可。キーを確認 |
+| `402` | 残高不足 | リトライ不可。[チャージ](https://app.lykuro.ai)が必要 |
+| `429` | レート制限超過 | `Retry-After` を見て待機後リトライ |
+| `5xx` | 上流の一時障害 | 指数バックオフでリトライ |
+| `502` | 上流へ到達不可 | 指数バックオフ、別プロバイダへフォールバック |
+
+詳細は [エラーコード](../reference/error-codes) を参照してください。
+
+<Tabs groupId="lang">
+<TabItem value="python" label="Python">
+
+```python
+import os, time
+from openai import OpenAI, APIStatusError, APIConnectionError
+
+client = OpenAI(
+    api_key=os.environ["LYKURO_API_KEY"],
+    base_url="https://api.lykuro.ai/deepseek/v1",
+)
+
+def chat_with_retry(messages, model="deepseek-chat", max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            return client.chat.completions.create(model=model, messages=messages)
+        except APIStatusError as e:
+            # 402（残高不足）/ 401（認証）はリトライしない
+            if e.status_code in (401, 402):
+                raise
+            # 429 / 5xx は指数バックオフ
+            if e.status_code == 429 or e.status_code >= 500:
+                wait = 2 ** attempt
+                print(f"retry in {wait}s (status={e.status_code})")
+                time.sleep(wait)
+                continue
+            raise
+        except APIConnectionError:
+            time.sleep(2 ** attempt)
+    raise RuntimeError("max retries exceeded")
+
+print(chat_with_retry([{"role": "user", "content": "こんにちは"}]).choices[0].message.content)
+```
+
+</TabItem>
+<TabItem value="ts" label="TypeScript">
+
+```typescript
+import OpenAI, { APIError } from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.LYKURO_API_KEY,
+  baseURL: "https://api.lykuro.ai/deepseek/v1",
+});
+
+async function chatWithRetry(
+  messages: OpenAI.Chat.ChatCompletionMessageParam[],
+  model = "deepseek-chat",
+  maxRetries = 3,
+) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await client.chat.completions.create({ model, messages });
+    } catch (e) {
+      if (e instanceof APIError) {
+        // 401 / 402 はリトライ不可
+        if (e.status === 401 || e.status === 402) throw e;
+        // 429 / 5xx は指数バックオフ
+        if (e.status === 429 || (e.status ?? 0) >= 500) {
+          await new Promise((r) => setTimeout(r, 2 ** attempt * 1000));
+          continue;
+        }
+      }
+      throw e;
+    }
+  }
+  throw new Error("max retries exceeded");
+}
+
+const res = await chatWithRetry([{ role: "user", content: "こんにちは" }]);
+console.log(res.choices[0].message.content);
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"time"
+
+	openai "github.com/sashabaranov/go-openai"
+)
+
+func chatWithRetry(client *openai.Client, req openai.ChatCompletionRequest, maxRetries int) (openai.ChatCompletionResponse, error) {
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		resp, err := client.CreateChatCompletion(context.Background(), req)
+		if err == nil {
+			return resp, nil
+		}
+		lastErr = err
+		var apiErr *openai.APIError
+		if errors.As(err, &apiErr) {
+			// 401 / 402 はリトライ不可
+			if apiErr.HTTPStatusCode == 401 || apiErr.HTTPStatusCode == 402 {
+				return resp, err
+			}
+		}
+		time.Sleep(time.Duration(1<<attempt) * time.Second)
+	}
+	return openai.ChatCompletionResponse{}, fmt.Errorf("max retries exceeded: %w", lastErr)
+}
+
+func main() {
+	cfg := openai.DefaultConfig(os.Getenv("LYKURO_API_KEY"))
+	cfg.BaseURL = "https://api.lykuro.ai/deepseek/v1"
+	client := openai.NewClientWithConfig(cfg)
+
+	resp, err := chatWithRetry(client, openai.ChatCompletionRequest{
+		Model:    "deepseek-chat",
+		Messages: []openai.ChatCompletionMessage{{Role: "user", Content: "こんにちは"}},
+	}, 3)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(resp.Choices[0].Message.Content)
+}
+```
+
+</TabItem>
+</Tabs>
+
+## プロバイダ・フォールバック
+
+ある上流が不調なときは、`base_url` を別プロバイダに差し替えて再試行できます。
+たとえば DeepSeek が `502` を返したら Qwen（`alibaba`）へ切り替える、といった冗長化が可能です。
+
+:::tip SDK 標準のリトライ
+OpenAI SDK は `max_retries` オプションで 429 / 5xx を自動リトライします（Python/TS とも）。
+まずは `OpenAI(max_retries=3)` を設定し、足りない制御だけ上記のように自前で補うのがおすすめです。
+:::

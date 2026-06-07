@@ -1,0 +1,210 @@
+---
+id: function-calling
+title: Function Calling
+sidebar_position: 2
+description: ツール（関数）呼び出しの実装パターン（Python / TypeScript / Go / cURL）
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Function Calling（ツール呼び出し）
+
+モデルに「呼び出すべき関数」を提示し、引数を生成させます。OpenAI の Tool Calling 仕様と互換です。
+フローは **①ツール定義つきでリクエスト → ②モデルが `tool_calls` を返す → ③関数を実行 → ④結果を `role: tool` で渡して再リクエスト** の2往復です。
+
+<Tabs groupId="lang">
+<TabItem value="python" label="Python">
+
+```python
+import os, json
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ["LYKURO_API_KEY"],
+    base_url="https://api.lykuro.ai/alibaba/compatible-mode/v1",
+)
+
+tools = [{
+    "type": "function",
+    "function": {
+        "name": "get_weather",
+        "description": "指定した都市の現在の天気を取得する",
+        "parameters": {
+            "type": "object",
+            "properties": {"city": {"type": "string", "description": "都市名"}},
+            "required": ["city"],
+        },
+    },
+}]
+
+def get_weather(city: str) -> str:
+    return json.dumps({"city": city, "weather": "晴れ", "temp_c": 22})
+
+messages = [{"role": "user", "content": "東京の天気は？"}]
+
+# ① ツール定義つきでリクエスト
+resp = client.chat.completions.create(model="qwen-plus", messages=messages, tools=tools)
+msg = resp.choices[0].message
+messages.append(msg)
+
+# ② モデルが返した tool_calls を実行
+for call in msg.tool_calls or []:
+    args = json.loads(call.function.arguments)
+    result = get_weather(**args)
+    messages.append({"role": "tool", "tool_call_id": call.id, "content": result})
+
+# ③ 結果を渡して最終回答を生成
+final = client.chat.completions.create(model="qwen-plus", messages=messages, tools=tools)
+print(final.choices[0].message.content)
+```
+
+</TabItem>
+<TabItem value="ts" label="TypeScript">
+
+```typescript
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.LYKURO_API_KEY,
+  baseURL: "https://api.lykuro.ai/alibaba/compatible-mode/v1",
+});
+
+const tools: OpenAI.Chat.ChatCompletionTool[] = [{
+  type: "function",
+  function: {
+    name: "get_weather",
+    description: "指定した都市の現在の天気を取得する",
+    parameters: {
+      type: "object",
+      properties: { city: { type: "string", description: "都市名" } },
+      required: ["city"],
+    },
+  },
+}];
+
+const getWeather = (city: string) =>
+  JSON.stringify({ city, weather: "晴れ", temp_c: 22 });
+
+const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+  { role: "user", content: "東京の天気は？" },
+];
+
+const resp = await client.chat.completions.create({ model: "qwen-plus", messages, tools });
+const msg = resp.choices[0].message;
+messages.push(msg);
+
+for (const call of msg.tool_calls ?? []) {
+  const args = JSON.parse(call.function.arguments);
+  messages.push({ role: "tool", tool_call_id: call.id, content: getWeather(args.city) });
+}
+
+const final = await client.chat.completions.create({ model: "qwen-plus", messages, tools });
+console.log(final.choices[0].message.content);
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+
+	openai "github.com/sashabaranov/go-openai"
+)
+
+func getWeather(city string) string {
+	b, _ := json.Marshal(map[string]any{"city": city, "weather": "晴れ", "temp_c": 22})
+	return string(b)
+}
+
+func main() {
+	cfg := openai.DefaultConfig(os.Getenv("LYKURO_API_KEY"))
+	cfg.BaseURL = "https://api.lykuro.ai/alibaba/compatible-mode/v1"
+	client := openai.NewClientWithConfig(cfg)
+
+	tools := []openai.Tool{{
+		Type: openai.ToolTypeFunction,
+		Function: &openai.FunctionDefinition{
+			Name:        "get_weather",
+			Description: "指定した都市の現在の天気を取得する",
+			Parameters: map[string]any{
+				"type":       "object",
+				"properties": map[string]any{"city": map[string]any{"type": "string"}},
+				"required":   []string{"city"},
+			},
+		},
+	}}
+
+	messages := []openai.ChatCompletionMessage{{Role: "user", Content: "東京の天気は？"}}
+	ctx := context.Background()
+
+	resp, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+		Model: "qwen-plus", Messages: messages, Tools: tools,
+	})
+	if err != nil {
+		panic(err)
+	}
+	msg := resp.Choices[0].Message
+	messages = append(messages, msg)
+
+	for _, call := range msg.ToolCalls {
+		var args struct {
+			City string `json:"city"`
+		}
+		_ = json.Unmarshal([]byte(call.Function.Arguments), &args)
+		messages = append(messages, openai.ChatCompletionMessage{
+			Role: openai.ChatMessageRoleTool, ToolCallID: call.ID, Content: getWeather(args.City),
+		})
+	}
+
+	final, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+		Model: "qwen-plus", Messages: messages, Tools: tools,
+	})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(final.Choices[0].Message.Content)
+}
+```
+
+</TabItem>
+<TabItem value="curl" label="cURL">
+
+```bash
+# ① ツール定義つきでリクエスト（モデルが tool_calls を返す）
+curl https://api.lykuro.ai/alibaba/compatible-mode/v1/chat/completions \
+  -H "Authorization: Bearer $LYKURO_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen-plus",
+    "messages": [{"role": "user", "content": "東京の天気は？"}],
+    "tools": [{
+      "type": "function",
+      "function": {
+        "name": "get_weather",
+        "description": "指定した都市の現在の天気を取得する",
+        "parameters": {
+          "type": "object",
+          "properties": {"city": {"type": "string"}},
+          "required": ["city"]
+        }
+      }
+    }]
+  }'
+```
+
+返ってきた `tool_calls` の関数をアプリ側で実行し、その結果を `{"role":"tool","tool_call_id":"...","content":"..."}` として `messages` に追加し、もう一度同じエンドポイントへ送ると最終回答が得られます。
+
+</TabItem>
+</Tabs>
+
+:::tip 対応モデル
+Function Calling は `qwen-plus` / `qwen-max` / `qwen3-max` / `deepseek-chat` などで利用できます。
+対応状況は [モデル一覧](../reference/models) を参照してください。
+:::

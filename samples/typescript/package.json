@@ -1,0 +1,16 @@
+{
+  "name": "lykuro-samples-ts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "chat": "tsx src/chat.ts",
+    "streaming": "tsx src/streaming.ts"
+  },
+  "dependencies": {
+    "openai": "^4.60.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}

@@ -1,0 +1,92 @@
+---
+id: vision
+title: 画像入力（ビジョン）
+sidebar_position: 4
+description: 画像を理解させる（Qwen-VL）（Python / TypeScript / cURL）
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# 画像入力（ビジョン）
+
+`qwen-vl-max` / `qwen3-vl-plus` などのビジョンモデルは、画像URL または base64 画像を入力できます。
+`content` を配列にして `image_url` と `text` を混在させます（OpenAI Vision 互換）。
+
+<Tabs groupId="lang">
+<TabItem value="python" label="Python">
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ["LYKURO_API_KEY"],
+    base_url="https://api.lykuro.ai/alibaba/compatible-mode/v1",
+)
+
+resp = client.chat.completions.create(
+    model="qwen-vl-max",
+    messages=[{
+        "role": "user",
+        "content": [
+            {"type": "image_url", "image_url": {"url": "https://example.com/photo.jpg"}},
+            {"type": "text", "text": "この画像に写っているものを説明してください。"},
+        ],
+    }],
+)
+print(resp.choices[0].message.content)
+```
+
+base64 画像を渡す場合は `"url": "data:image/jpeg;base64,..."` の形式にします。
+
+</TabItem>
+<TabItem value="ts" label="TypeScript">
+
+```typescript
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.LYKURO_API_KEY,
+  baseURL: "https://api.lykuro.ai/alibaba/compatible-mode/v1",
+});
+
+const resp = await client.chat.completions.create({
+  model: "qwen-vl-max",
+  messages: [{
+    role: "user",
+    content: [
+      { type: "image_url", image_url: { url: "https://example.com/photo.jpg" } },
+      { type: "text", text: "この画像に写っているものを説明してください。" },
+    ],
+  }],
+});
+console.log(resp.choices[0].message.content);
+```
+
+</TabItem>
+<TabItem value="curl" label="cURL">
+
+```bash
+curl https://api.lykuro.ai/alibaba/compatible-mode/v1/chat/completions \
+  -H "Authorization: Bearer $LYKURO_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen-vl-max",
+    "messages": [{
+      "role": "user",
+      "content": [
+        {"type": "image_url", "image_url": {"url": "https://example.com/photo.jpg"}},
+        {"type": "text", "text": "この画像に写っているものを説明してください。"}
+      ]
+    }]
+  }'
+```
+
+</TabItem>
+</Tabs>
+
+:::tip OCR には Qwen-VL-OCR
+画像内の文字認識（OCR）に特化した `qwen-vl-ocr` も利用できます。
+ビジョン系モデルの一覧は [モデル一覧](../reference/models) を参照してください。
+:::

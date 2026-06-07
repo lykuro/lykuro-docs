@@ -1,0 +1,79 @@
+---
+id: reasoning
+title: 推論モデル
+sidebar_position: 6
+description: 思考過程付きモデル（deepseek-reasoner / Qwen thinking）の使い方
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# 推論モデル（Reasoning）
+
+複雑な数学・コーディング・論理問題には、思考過程を伴う推論モデルが有効です。
+
+- **DeepSeek**: `deepseek-reasoner`（`deepseek-v4-pro` の別名）。思考内容は `reasoning_content` に入ります。
+- **Qwen**: `thinking` パラメータで思考モードを有効化できます（対応モデルのみ）。
+
+<Tabs groupId="lang">
+<TabItem value="python" label="Python">
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ["LYKURO_API_KEY"],
+    base_url="https://api.lykuro.ai/deepseek/v1",
+)
+
+resp = client.chat.completions.create(
+    model="deepseek-reasoner",
+    messages=[{"role": "user", "content": "1から100までの素数はいくつ？数えて。"}],
+)
+
+msg = resp.choices[0].message
+# 思考過程（モデルが対応している場合）
+reasoning = getattr(msg, "reasoning_content", None)
+if reasoning:
+    print("=== 思考過程 ===")
+    print(reasoning)
+print("=== 回答 ===")
+print(msg.content)
+```
+
+</TabItem>
+<TabItem value="curl" label="cURL">
+
+```bash
+curl https://api.lykuro.ai/deepseek/v1/chat/completions \
+  -H "Authorization: Bearer $LYKURO_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "deepseek-reasoner",
+    "messages": [{"role": "user", "content": "1から100までの素数はいくつ？数えて。"}]
+  }'
+```
+
+レスポンスの `choices[0].message.reasoning_content` に思考過程、`content` に最終回答が入ります。
+
+</TabItem>
+</Tabs>
+
+## Qwen の thinking モード
+
+```bash
+curl https://api.lykuro.ai/alibaba/compatible-mode/v1/chat/completions \
+  -H "Authorization: Bearer $LYKURO_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen3-max",
+    "messages": [{"role": "user", "content": "難しい論理パズルを解いて。"}],
+    "thinking": {"type": "enabled", "budget_tokens": 5000}
+  }'
+```
+
+:::warning コストに注意
+推論モデルは思考トークンも**出力トークンとして課金**されます。
+簡単なタスクには `deepseek-chat` / `qwen-turbo` など通常モデルの方が高速・低コストです。
+:::

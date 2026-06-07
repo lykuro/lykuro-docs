@@ -1,0 +1,80 @@
+.trigger {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--ifm-color-primary);
+  background: transparent;
+  border: 1px solid var(--ifm-color-primary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.trigger:hover {
+  color: var(--ifm-background-color);
+  background: var(--ifm-color-primary);
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 5vh 1rem;
+  background: rgba(0, 0, 0, 0.55);
+  overflow-y: auto;
+}
+
+.dialog {
+  width: 100%;
+  max-width: 880px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--ifm-background-surface-color, var(--ifm-background-color));
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.dialogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.1rem;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+}
+
+.dialogTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.close {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: var(--ifm-font-color-base);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--ifm-color-emphasis-200);
+}
+
+.dialogBody {
+  padding: 0 1.1rem 1.1rem;
+  overflow-y: auto;
+}

@@ -1,0 +1,132 @@
+---
+id: streaming
+title: ストリーミング
+sidebar_position: 1
+description: SSE でトークンを逐次受信する（Python / TypeScript / Go / cURL）
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# ストリーミング
+
+`stream: true` を指定すると、レスポンスを Server-Sent Events（SSE）で逐次受信できます。
+Lykuro はレスポンスを**生バイトで透過**するため、上流（OpenAI互換）と完全に同じ形式です。
+
+<Tabs groupId="lang">
+<TabItem value="python" label="Python">
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ["LYKURO_API_KEY"],
+    base_url="https://api.lykuro.ai/deepseek/v1",
+)
+
+stream = client.chat.completions.create(
+    model="deepseek-chat",
+    messages=[{"role": "user", "content": "俳句を3つ作ってください。"}],
+    stream=True,
+)
+
+for chunk in stream:
+    delta = chunk.choices[0].delta.content
+    if delta:
+        print(delta, end="", flush=True)
+print()
+```
+
+</TabItem>
+<TabItem value="ts" label="TypeScript">
+
+```typescript
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.LYKURO_API_KEY,
+  baseURL: "https://api.lykuro.ai/deepseek/v1",
+});
+
+const stream = await client.chat.completions.create({
+  model: "deepseek-chat",
+  messages: [{ role: "user", content: "俳句を3つ作ってください。" }],
+  stream: true,
+});
+
+for await (const chunk of stream) {
+  const delta = chunk.choices[0]?.delta?.content;
+  if (delta) process.stdout.write(delta);
+}
+process.stdout.write("\n");
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+
+	openai "github.com/sashabaranov/go-openai"
+)
+
+func main() {
+	cfg := openai.DefaultConfig(os.Getenv("LYKURO_API_KEY"))
+	cfg.BaseURL = "https://api.lykuro.ai/deepseek/v1"
+	client := openai.NewClientWithConfig(cfg)
+
+	stream, err := client.CreateChatCompletionStream(context.Background(), openai.ChatCompletionRequest{
+		Model:    "deepseek-chat",
+		Messages: []openai.ChatCompletionMessage{{Role: "user", Content: "俳句を3つ作ってください。"}},
+		Stream:   true,
+	})
+	if err != nil {
+		panic(err)
+	}
+	defer stream.Close()
+
+	for {
+		resp, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			panic(err)
+		}
+		fmt.Print(resp.Choices[0].Delta.Content)
+	}
+	fmt.Println()
+}
+```
+
+</TabItem>
+<TabItem value="curl" label="cURL">
+
+```bash
+curl -N https://api.lykuro.ai/deepseek/v1/chat/completions \
+  -H "Authorization: Bearer $LYKURO_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "deepseek-chat",
+    "messages": [{"role": "user", "content": "俳句を3つ作ってください。"}],
+    "stream": true
+  }'
+```
+
+`-N`（`--no-buffer`）でストリームを逐次表示します。各行は `data: {...}` 形式で届き、最後に `data: [DONE]` で終了します。
+
+</TabItem>
+</Tabs>
+
+:::note 課金とストリーミング
+ストリーミングでも、レスポンス末尾の `usage` を Lykuro が覗き見て課金します。
+プロンプト本文は保存されません（Zero-Retention）。
+:::

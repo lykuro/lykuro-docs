@@ -1,0 +1,88 @@
+---
+id: structured-output
+title: 構造化出力（JSON）
+sidebar_position: 3
+description: response_format で JSON 出力を強制する（Python / TypeScript / cURL）
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# 構造化出力（JSON）
+
+`response_format: {"type": "json_object"}` を指定すると、モデルは妥当な JSON のみを返します。
+プロンプト側にも「JSONで返す」旨と期待するスキーマを明記すると安定します。
+
+<Tabs groupId="lang">
+<TabItem value="python" label="Python">
+
+```python
+import os, json
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ["LYKURO_API_KEY"],
+    base_url="https://api.lykuro.ai/alibaba/compatible-mode/v1",
+)
+
+resp = client.chat.completions.create(
+    model="qwen-plus",
+    response_format={"type": "json_object"},
+    messages=[
+        {"role": "system", "content": "次の形式のJSONのみを返す: {\"name\": string, \"age\": number, \"hobbies\": string[]}"},
+        {"role": "user", "content": "30歳の田中さん。趣味は登山と写真。"},
+    ],
+)
+
+data = json.loads(resp.choices[0].message.content)
+print(data["name"], data["age"], data["hobbies"])
+```
+
+</TabItem>
+<TabItem value="ts" label="TypeScript">
+
+```typescript
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.LYKURO_API_KEY,
+  baseURL: "https://api.lykuro.ai/alibaba/compatible-mode/v1",
+});
+
+const resp = await client.chat.completions.create({
+  model: "qwen-plus",
+  response_format: { type: "json_object" },
+  messages: [
+    { role: "system", content: '次の形式のJSONのみを返す: {"name": string, "age": number, "hobbies": string[]}' },
+    { role: "user", content: "30歳の田中さん。趣味は登山と写真。" },
+  ],
+});
+
+const data = JSON.parse(resp.choices[0].message.content!);
+console.log(data.name, data.age, data.hobbies);
+```
+
+</TabItem>
+<TabItem value="curl" label="cURL">
+
+```bash
+curl https://api.lykuro.ai/alibaba/compatible-mode/v1/chat/completions \
+  -H "Authorization: Bearer $LYKURO_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen-plus",
+    "response_format": {"type": "json_object"},
+    "messages": [
+      {"role": "system", "content": "次の形式のJSONのみを返す: {\"name\": string, \"age\": number, \"hobbies\": string[]}"},
+      {"role": "user", "content": "30歳の田中さん。趣味は登山と写真。"}
+    ]
+  }'
+```
+
+</TabItem>
+</Tabs>
+
+:::warning スキーマ強制について
+`json_object` モードは「妥当なJSON」を保証しますが、**フィールド構造までは強制しません**。
+厳密なスキーマが必要な場合は、プロンプトでスキーマを明示し、受信後にアプリ側でバリデーション（Pydantic / Zod 等）してください。
+:::

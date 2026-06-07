@@ -1,0 +1,74 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+/* You can override the default Infima variables here. */
+:root {
+  --ifm-color-primary: #2e8555;
+  --ifm-color-primary-dark: #29784c;
+  --ifm-color-primary-darker: #277148;
+  --ifm-color-primary-darkest: #205d3b;
+  --ifm-color-primary-light: #33925d;
+  --ifm-color-primary-lighter: #359962;
+  --ifm-color-primary-lightest: #3cad6e;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+/* テーブル横スクロール */
+.markdown table {
+  display: block;
+  overflow-x: auto;
+}
+
+.markdown table td,
+.markdown table th {
+  white-space: normal;
+  min-width: 120px;
+}
+
+/* モデルID列（1列目）は改行しない */
+.markdown table td:first-child,
+.markdown table th:first-child {
+  white-space: nowrap;
+  min-width: unset;
+}
+
+/* 説明列（2列目）*/
+.markdown table td:nth-child(2),
+.markdown table th:nth-child(2) {
+  min-width: 280px;
+}
+
+/* 特徴列（3列目）*/
+.markdown table td:nth-child(3),
+.markdown table th:nth-child(3) {
+  min-width: 220px;
+}
+
+/* 価格列（4列目）*/
+.markdown table td:nth-child(4),
+.markdown table th:nth-child(4) {
+  min-width: 200px;
+  white-space: nowrap;
+}
+
+/* 対応機能列（5列目）*/
+.markdown table td:nth-child(5),
+.markdown table th:nth-child(5) {
+  min-width: 240px;
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  --ifm-color-primary: #25c2a0;
+  --ifm-color-primary-dark: #21af90;
+  --ifm-color-primary-darker: #1fa588;
+  --ifm-color-primary-darkest: #1a8870;
+  --ifm-color-primary-light: #29d5b0;
+  --ifm-color-primary-lighter: #32d8b4;
+  --ifm-color-primary-lightest: #4fddbf;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
