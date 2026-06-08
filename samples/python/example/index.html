@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>漫画風マニュアル生成 — 入力と結果のサンプル</title>
+  <style>
+    :root { --ink: #111; --muted: #666; --bg: #f6f6f8; --line: #e3e3e8; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, "Hiragino Sans", sans-serif; margin: 0; background: var(--bg); color: #1a1a1a; }
+    header { padding: 28px 24px 8px; text-align: center; }
+    header h1 { margin: 0 0 6px; font-size: 22px; }
+    header p { margin: 0; color: var(--muted); font-size: 14px; }
+    .arrow { text-align: center; color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+    .wrap { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 24px;
+            max-width: 1180px; margin: 16px auto 56px; padding: 0 24px; align-items: start; }
+    @media (max-width: 820px) { .wrap { grid-template-columns: 1fr; } }
+    .col h2 { font-size: 14px; letter-spacing: .04em; color: var(--muted); margin: 0 0 10px;
+              text-transform: uppercase; }
+    .manual { background: #fff; border: 1px solid var(--line); border-radius: 10px;
+              padding: 16px 18px; position: sticky; top: 16px; }
+    .manual pre { margin: 0; white-space: pre-wrap; font: 13px/1.7 ui-monospace, "SFMono-Regular", monospace;
+                  color: #2a2a2a; }
+    .badge { display: inline-block; background: #111; color: #fff; font-size: 11px; border-radius: 999px;
+             padding: 2px 10px; margin-bottom: 10px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; }
+    .panel { background: #fff; border: 2px solid var(--ink); border-radius: 8px; margin: 0;
+             overflow: hidden; position: relative; box-shadow: 4px 4px 0 var(--ink); }
+    .panel .no { position: absolute; top: 8px; left: 8px; background: var(--ink); color: #fff;
+                 width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+                 font-weight: 700; z-index: 1; }
+    .panel img { width: 100%; display: block; aspect-ratio: 1; object-fit: cover; }
+    figcaption { padding: 12px 14px 16px; }
+    figcaption h3 { margin: 0 0 6px; font-size: 15px; }
+    .speech { background: #eef; border-radius: 12px; padding: 6px 10px; margin: 0 0 6px; font-size: 13px; }
+    .caption { margin: 0; font-size: 13px; color: #444; line-height: 1.6; }
+    footer { text-align: center; color: var(--muted); font-size: 12px; padding: 0 24px 40px; }
+    footer code { background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>漫画風マニュアル生成 — サンプル結果</h1>
+    <p>文字だけの操作マニュアル（入力）と、自動生成された漫画版（出力）のセット</p>
+    <p class="arrow">入力 ─ テキスト生成 → 画像生成 → ビジョン点検 → 漫画版 ─ 出力</p>
+  </header>
+
+  <div class="wrap">
+    <!-- 入力: 文字だけのマニュアル -->
+    <section class="col">
+      <h2>入力：文字だけのマニュアル</h2>
+      <div class="manual">
+        <span class="badge">manga_manual.txt</span>
+        <pre># Lykuro ダッシュボードで API キーを発行する手順
+
+## 手順1: ログインする
+ブラウザで https://app.lykuro.ai を開きます。メールアドレスとパスワードを入力し、
+「ログイン」ボタンを押します。初めての方は「新規登録」から先にアカウントを作成してください。
+
+## 手順2: API キー画面を開く
+ログインすると左側にメニューが表示されます。メニューの中から「API キー」をクリックします。
+これまでに発行したキーの一覧が表示されます。
+
+## 手順3: 新しいキーを発行する
+画面右上の「＋ 新規発行」ボタンを押します。キーの名前（例: 開発用、本番用）を入力する
+ダイアログが開くので、用途が分かる名前を付けて「作成」を押します。
+
+## 手順4: キーを安全に控える
+発行直後にだけ、完全な API キー（sk-jp- で始まる文字列）が一度だけ表示されます。
+「コピー」ボタンでコピーし、パスワードマネージャーなど安全な場所に保管してください。
+この画面を閉じると二度と全体は表示されません。
+
+## 手順5: 残高をチャージする
+API を呼び出すには前払い残高が必要です。メニューの「残高」を開き、「チャージ」ボタンから
+クレジットカードで入金します。少額（例: 1,000円）から始められます。
+
+## 手順6: 動作確認する
+ターミナルで base_url を https://api.lykuro.ai/deepseek/v1 に差し替え、発行したキーを使って
+最初のリクエストを送ります。応答が返ってくればセットアップ完了です。</pre>
+      </div>
+    </section>
+
+    <!-- 出力: 漫画版 -->
+    <section class="col">
+      <h2>出力：漫画版マニュアル</h2>
+      <div class="grid">
+        <figure class="panel">
+          <span class="no">1</span>
+          <img src="panel_01.jpg" alt="男性がラップトップの画面に表示されたログインフォームに指を当て、パスワード入力後に「ログイン」ボタンをクリックしている。" loading="lazy" />
+          <figcaption>
+            <h3>ログインする</h3>
+            <p class="speech">💬 ログインできたら、APIキー画面へGO！</p>
+            <p class="caption">ブラウザでLykuroアプリにアクセスし、メールアドレスとパスワードを入力してログインします。新規ユーザーは「新規登録」から始めましょう。</p>
+          </figcaption>
+        </figure>
+        <figure class="panel">
+          <span class="no">2</span>
+          <img src="panel_02.jpg" alt="人物がパソコンの画面を指差しており、APIキーの管理画面が表示されている。" loading="lazy" />
+          <figcaption>
+            <h3>APIキー画面を開く</h3>
+            <p class="speech">💬 ここから新しいキーを作ります！</p>
+            <p class="caption">ログイン後、左メニューから「API キー」をクリックします。既存のキー一覧が表示されます。</p>
+          </figcaption>
+        </figure>
+        <figure class="panel">
+          <span class="no">3</span>
+          <img src="panel_03.jpg" alt="画面に「開発用」と入力し、作成ボタンをクリックして新しいキーを発行する。" loading="lazy" />
+          <figcaption>
+            <h3>新しいキーを発行する</h3>
+            <p class="speech">💬 名前はあとで分かりやすいように！</p>
+            <p class="caption">右上の「＋ 新規発行」ボタンを押すと、用途が分かる名前（例：開発用）を入力するダイアログが開きます。「作成」を押して発行しましょう。</p>
+          </figcaption>
+        </figure>
+        <figure class="panel">
+          <span class="no">4</span>
+          <img src="panel_04.jpg" alt="画面に「sk-jp-」と表示され、警告マークが点灯している中、指がその文字列を指している。" loading="lazy" />
+          <figcaption>
+            <h3>キーを安全に控える</h3>
+            <p class="speech">💬 絶対に閉じちゃダメ！今だけ見られます！</p>
+            <p class="caption">発行直後に表示される完全なAPIキー（sk-jp-で始まる文字列）は、このタイミングでしか確認できません。必ず「コピー」して、パスワードマネージャーなど安全な場所に保存してください。</p>
+          </figcaption>
+        </figure>
+        <figure class="panel">
+          <span class="no">5</span>
+          <img src="panel_05.jpg" alt="自動販売機の画面で「残高」をタップし、1,000円をチャージする操作を行っている。" loading="lazy" />
+          <figcaption>
+            <h3>残高をチャージする</h3>
+            <p class="speech">💬 ちょっとだけ入れて、さっそく試そう！</p>
+            <p class="caption">API利用には前払い残高が必要です。左メニューの「残高」からクレジットカードで少額（例：1,000円）からチャージできます。</p>
+          </figcaption>
+        </figure>
+        <figure class="panel">
+          <span class="no">6</span>
+          <img src="panel_06.jpg" alt="コマンドを実行して「200 OK」の応答を受け取り、成功を喜ぶ人物の様子。" loading="lazy" />
+          <figcaption>
+            <h3>動作確認する</h3>
+            <p class="speech">💬 やった！接続成功♪</p>
+            <p class="caption">ターミナルでbase_urlを指定し、発行したAPIキーを使ってリクエストを送信。正常な応答（例：200 OK）が返れば、セットアップは完了です！</p>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    この結果は <code>python manga_manual.py</code> で <code>manga_manual.txt</code> から自動生成したサンプルです。
+    テキスト生成 <code>qwen-plus</code> ／ 画像生成 <code>qwen-image</code> ／ ビジョン <code>qwen-vl-max</code>（すべて Lykuro 経由）。
+  </footer>
+</body>
+</html>

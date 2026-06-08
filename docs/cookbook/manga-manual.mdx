@@ -178,6 +178,33 @@ python manga_manual.py --input your_manual.txt --out out --max-panels 8
 実行すると `out/panel_01.png … out/manga.html` が生成され、ブラウザで開くと
 文字マニュアルが漫画風マニュアルに変換されています。
 
+## 実行例（入力と結果）
+
+同梱の `manga_manual.txt`（文字だけの操作マニュアル）を実際に変換した結果です。
+
+**入力（抜粋）**
+
+```text
+# Lykuro ダッシュボードで API キーを発行する手順
+## 手順1: ログインする
+ブラウザで https://app.lykuro.ai を開きます。メールアドレスとパスワードを入力し、
+「ログイン」ボタンを押します。…
+## 手順4: キーを安全に控える
+発行直後にだけ、完全な API キー（sk-jp- で始まる文字列）が一度だけ表示されます。…
+```
+
+**出力（漫画版・全6コマ）**
+
+| ① ログインする | ② APIキー画面を開く | ③ 新しいキーを発行 |
+|:--:|:--:|:--:|
+| ![ログインする](../../samples/python/example/panel_01.jpg) | ![APIキー画面を開く](../../samples/python/example/panel_02.jpg) | ![新しいキーを発行する](../../samples/python/example/panel_03.jpg) |
+| **④ キーを安全に控える** | **⑤ 残高をチャージする** | **⑥ 動作確認する** |
+| ![キーを安全に控える](../../samples/python/example/panel_04.jpg) | ![残高をチャージする](../../samples/python/example/panel_05.jpg) | ![動作確認する](../../samples/python/example/panel_06.jpg) |
+
+入力・吹き出し・キャプションまで並べた完全な画面は
+[`samples/python/example/index.html`](https://github.com/lykuro/lykuro-docs/blob/main/samples/python/example/index.html)
+をブラウザで開いて確認できます（API キー不要）。
+
 :::warning 留意点
 - 画像生成は生成1枚ごとに課金されます。`--max-panels` でコマ数を調整してください。
 - 画面UIを忠実に再現したい場合は、手元のスクリーンショットを `qwen-image-edit` や

@@ -14,6 +14,9 @@ python manga_manual.py      # 文字マニュアル→漫画風マニュアル�
 コマ割り画像を生成して `out/manga.html`（漫画版）を出力します。詳細は
 [Cookbook: 漫画風マニュアル生成](https://docs.lykuro.ai/docs/cookbook/manga-manual) を参照。
 
+入力と生成結果のサンプルは [`example/index.html`](./example/index.html) にまとめています
+（ブラウザで開くと、文字マニュアルと漫画版を並べて確認できます。API キー不要）。
+
 `LYKURO_BASE_URL` を変えると上流を切り替えられます。
 
 - DeepSeek: `https://api.lykuro.ai/deepseek/v1`（`model=deepseek-chat`）
