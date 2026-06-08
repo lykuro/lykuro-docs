@@ -5,6 +5,10 @@ samples/**/node_modules
 # サンプルの実シークレット（.env.example のみ追跡）
 samples/**/.env
 
+# サンプルの生成物
+samples/python/out/
+samples/python/__pycache__/
+
 # Production
 /build
 

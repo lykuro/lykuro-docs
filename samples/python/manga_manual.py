@@ -60,8 +60,9 @@ class Panel:
     image_prompt: str
     caption: str  # コマ下に載せる手順文
     speech: str = ""  # 吹き出しのセリフ（任意）
-    image_path: str = ""  # 生成された PNG の相対パス
+    image_path: str = ""  # 生成された PNG の相対パス（失敗時は空）
     alt_text: str = ""  # ビジョンが付けた説明文
+    error: str = ""  # 画像生成に失敗した場合の理由
 
 
 # ── 1) テキスト生成: マニュアルをコマ割りする ─────────────────────────────────
@@ -114,12 +115,25 @@ def plan_panels(manual_text: str, max_panels: int) -> list[Panel]:
 
 
 # ── 2) 画像生成: DashScope text2image 非同期フローを透過 ──────────────────────
-def generate_image(prompt: str, out_path: pathlib.Path, *, size: str = "1024*1024") -> None:
+def generate_image(prompt: str, out_path: pathlib.Path, *, size: str = "1024*1024", retries: int = 1) -> None:
     """qwen-image でコマ画像を生成し PNG を保存する。
 
     DashScope の text2image は「タスク作成 → ポーリング → 画像URL取得」の非同期方式。
     Lykuro は body を改変せず透過するため、上流の契約どおりに呼べる。
+    上流が一時的な FAILED を返すことがあるため retries 回まで作り直す。
     """
+    for attempt in range(retries + 1):
+        try:
+            _generate_image_once(prompt, out_path, size=size)
+            return
+        except RuntimeError as e:
+            if attempt >= retries:
+                raise
+            print(f"      ↻ 失敗（{e}）。リトライします…")
+            time.sleep(2)
+
+
+def _generate_image_once(prompt: str, out_path: pathlib.Path, *, size: str) -> None:
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
@@ -157,7 +171,9 @@ def generate_image(prompt: str, out_path: pathlib.Path, *, size: str = "1024*102
             out_path.write_bytes(img.content)
             return
         if status == "FAILED":
-            raise RuntimeError(f"画像生成失敗: {output.get('message', 'unknown error')}")
+            code = output.get("code", "")
+            msg = output.get("message", "unknown error")
+            raise RuntimeError(f"画像生成失敗 [{code}]: {msg}")
     raise TimeoutError("画像生成がタイムアウトしました。")
 
 
@@ -186,9 +202,14 @@ def build_html(title: str, panels: list[Panel], out_dir: pathlib.Path) -> pathli
     cards = []
     for p in panels:
         speech = f'<p class="speech">💬 {p.speech}</p>' if p.speech else ""
+        if p.image_path:
+            visual = f'<img src="{p.image_path}" alt="{p.alt_text or p.step_title}" loading="lazy" />'
+        else:
+            # 画像生成に失敗したコマはプレースホルダで表示（全体は壊さない）
+            visual = f'<div class="placeholder">画像生成スキップ<br /><small>{p.error}</small></div>'
         cards.append(f"""    <figure class="panel">
       <span class="no">{p.index}</span>
-      <img src="{p.image_path}" alt="{p.alt_text or p.step_title}" loading="lazy" />
+      {visual}
       <figcaption>
         <h3>{p.step_title}</h3>
         {speech}
@@ -212,6 +233,9 @@ def build_html(title: str, panels: list[Panel], out_dir: pathlib.Path) -> pathli
                   width: 28px; height: 28px; border-radius: 50%; display: grid;
                   place-items: center; font-weight: 700; }}
     .panel img {{ width: 100%; display: block; aspect-ratio: 1; object-fit: cover; }}
+    .placeholder {{ aspect-ratio: 1; display: grid; place-items: center; text-align: center;
+                    background: repeating-linear-gradient(45deg,#f0f0f0,#f0f0f0 10px,#e6e6e6 10px,#e6e6e6 20px);
+                    color: #999; font-size: 13px; padding: 12px; }}
     figcaption {{ padding: 12px 14px 16px; }}
     figcaption h3 {{ margin: 0 0 6px; font-size: 15px; }}
     .speech {{ background: #eef; border-radius: 12px; padding: 6px 10px; margin: 0 0 6px;
@@ -248,17 +272,30 @@ def main() -> None:
 
     panels = plan_panels(manual_text, args.max_panels)
 
+    failed = 0
     for p in panels:
         png = out_dir / f"panel_{p.index:02d}.png"
         print(f"[2/3] 画像生成: コマ{p.index} 「{p.step_title}」 …")
-        generate_image(p.image_prompt, png)
+        try:
+            generate_image(p.image_prompt, png)
+        except Exception as e:  # 1コマの失敗で全体を止めない（上流の一時障害・審査拒否など）
+            p.error = str(e)
+            failed += 1
+            print(f"      ⚠ コマ{p.index} はスキップ: {e}")
+            continue
         p.image_path = png.name
         if not args.no_vision:
-            p.alt_text = describe_panel(png, p.step_title)
-            print(f"[3/3] ビジョン点検: {p.alt_text}")
+            try:
+                p.alt_text = describe_panel(png, p.step_title)
+                print(f"[3/3] ビジョン点検: {p.alt_text}")
+            except Exception as e:
+                print(f"      ⚠ ビジョン点検をスキップ: {e}")
 
     html_path = build_html(title, panels, out_dir)
-    print(f"\n完成: {html_path}")
+    ok = sum(1 for p in panels if p.image_path)
+    print(f"\n完成: {html_path}（成功 {ok} / 失敗 {failed} コマ）")
+    if failed:
+        print("失敗コマはプレースホルダで表示されます。--max-panels や文言を調整して再実行できます。")
     print("ブラウザで開いて漫画風マニュアルを確認してください。")
 
 
