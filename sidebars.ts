@@ -48,6 +48,7 @@ const sidebars: SidebarsConfig = {
         "cookbook/embeddings",
         "cookbook/reasoning",
         "cookbook/error-handling",
+        "cookbook/manga-manual",
       ],
     },
     {

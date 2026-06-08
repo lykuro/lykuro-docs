@@ -1,2 +1,3 @@
 openai>=1.40.0
 python-dotenv>=1.0.0
+requests>=2.31.0  # manga_manual.py の画像生成（DashScope 非同期API）用

@@ -29,6 +29,7 @@ description: Lykuro AI を使った実践的なコードサンプル集（Python
 | [埋め込み（Embeddings）](./embeddings) | ベクトル化と類似度検索 | Python / TS / cURL |
 | [推論モデル](./reasoning) | 思考過程付きモデルの使い方 | Python / cURL |
 | [エラー処理・リトライ](./error-handling) | 堅牢な本番実装パターン | Python / TS / Go |
+| [漫画風マニュアル生成](./manga-manual) | 文字マニュアル→漫画化（テキスト生成＋画像生成＋ビジョン） | Python / cURL |
 
 ## 動かせるサンプルコード
 
