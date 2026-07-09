@@ -188,6 +188,11 @@ const sidebars: SidebarsConfig = {
       ],
     },
     {
+      type: "doc",
+      id: "guides/auto-model-selection",
+      label: "自動モデル選択（lykuro/auto）",
+    },
+    {
       type: "category",
       label: "リファレンス",
       collapsible: true,
