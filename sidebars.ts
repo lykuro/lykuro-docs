@@ -201,6 +201,7 @@ const sidebars: SidebarsConfig = {
         "reference/pricing",
         "reference/rate-limits",
         "reference/error-codes",
+        "reference/deprecations",
       ],
     },
     {
