@@ -13,7 +13,48 @@ export type ApiRef = {
   headers: ApiParam[];
   params: ApiParam[]; // request body / query parameters
   note?: string;
+  // 非同期タスクAPI(X-DashScope-Async: enable)の場合のタスク照会仕様。
+  asyncTask?: AsyncTaskRef;
 };
+
+export type AsyncStatusRow = { status: string; desc: string };
+
+export type AsyncTaskRef = {
+  pollEndpoint: string; // method + URL(タスク照会)
+  note: string;
+  statuses: AsyncStatusRow[];
+  // 作成レスポンス+照会レスポンスの主要フィールド
+  responseFields: ApiParam[];
+};
+
+// 非同期タスク(画像・動画・音声認識)の共通仕様。resultFields には kind ごとの
+// 成功時の結果フィールドを渡す。
+function asyncTaskRef(resultFields: ApiParam[]): AsyncTaskRef {
+  return {
+    pollEndpoint: `GET ${DASHSCOPE_BASE}/tasks/{task_id}`,
+    note:
+      "作成リクエストは即座に task_id を返し、生成はバックグラウンドで実行されます。" +
+      "タスク照会APIを数秒間隔でポーリングし、task_status が SUCCEEDED になったら結果URLを取得してください。" +
+      "結果URL・task_id の有効期限は24時間です(期限内にダウンロードして保存してください)。" +
+      "照会APIの認証は作成時と同じ Authorization ヘッダーのみで、X-DashScope-Async は不要です。",
+    statuses: [
+      { status: "PENDING", desc: "キュー待ち(未実行)" },
+      { status: "RUNNING", desc: "生成処理を実行中" },
+      { status: "SUCCEEDED", desc: "成功。output に結果(URL等)が入る" },
+      { status: "FAILED", desc: "失敗。output.code / output.message に失敗理由" },
+      { status: "CANCELED", desc: "キャンセル済み(PENDING 中のみキャンセル可)" },
+      { status: "UNKNOWN", desc: "タスク不明(期限切れ・存在しない task_id)" },
+    ],
+    responseFields: [
+      { name: "output.task_id", type: "string", desc: "タスクID。照会APIのURLパスに使用" },
+      { name: "output.task_status", type: "string", desc: "タスク状態(上表のいずれか)" },
+      ...resultFields,
+      { name: "output.code / output.message", type: "string", desc: "FAILED 時のエラーコードと理由" },
+      { name: "usage", type: "object", desc: "課金対象量(SUCCEEDED 時)。動画は `video_duration`(秒)、画像は `image_count` 等" },
+      { name: "request_id", type: "string", desc: "リクエスト識別子(サポート問い合わせ時に添付)" },
+    ],
+  };
+}
 
 type ModelLike = {
   provider: string;
@@ -149,18 +190,24 @@ export function apiRefFor(m: ModelLike): ApiRef {
           JSON_HEADER,
           { name: "X-DashScope-Async", type: "string", required: true, desc: "`enable`（非同期タスクとして実行）" },
         ],
-        note: "DashScope ネイティブAPI。非同期タスクIDを受け取り、タスク照会APIで結果を取得します。",
+        note: "DashScope ネイティブAPI（非同期）。作成レスポンスの task_id をタスク照会APIに渡して結果画像URLを取得します（下の「非同期処理」参照）。",
         params: [
           { name: "model", type: "string", required: true, desc: "モデル名。例: `" + m.model + "`" },
-          { name: "input.prompt", type: "string", required: true, desc: "生成プロンプト" },
-          { name: "input.negative_prompt", type: "string", desc: "ネガティブプロンプト" },
-          { name: "parameters.size", type: "string", desc: "画像サイズ。例: `1024*1024`" },
-          { name: "parameters.n", type: "integer", desc: "生成枚数" },
-          { name: "parameters.seed", type: "integer", desc: "乱数シード" },
+          { name: "input.prompt", type: "string", required: true, desc: "生成プロンプト。日本語可、最大800文字程度。描きたい主題・スタイル・構図を具体的に" },
+          { name: "input.negative_prompt", type: "string", desc: "描きたくない要素（例: `低品質, ぼやけ, 文字`）。最大500文字程度" },
+          { name: "parameters.size", type: "string", desc: "出力解像度 `幅*高さ`。例: `1024*1024`（デフォルト）、`1280*720`、`720*1280`" },
+          { name: "parameters.n", type: "integer", desc: "生成枚数。1〜4（デフォルト 1）。枚数分課金されます" },
+          { name: "parameters.seed", type: "integer", desc: "乱数シード（0〜2147483647）。同一プロンプト+同一シードで再現性を確保" },
+          { name: "parameters.prompt_extend", type: "boolean", desc: "プロンプトの自動拡張（LLMによる詳細化）。デフォルト true。忠実に従わせたい場合は false" },
+          { name: "parameters.watermark", type: "boolean", desc: "生成画像への「AI生成」透かし付与。デフォルト false" },
         ],
+        asyncTask: asyncTaskRef([
+          { name: "output.results[].url", type: "string", desc: "SUCCEEDED 時: 生成画像のURL（n 枚分の配列。有効期限24時間）" },
+        ]),
       };
 
-    case "video":
+    case "video": {
+      const isI2V = m.model.includes("i2v");
       return {
         endpoint: `POST ${DASHSCOPE_BASE}/services/aigc/video-generation/video-synthesis`,
         headers: [
@@ -168,26 +215,44 @@ export function apiRefFor(m: ModelLike): ApiRef {
           JSON_HEADER,
           { name: "X-DashScope-Async", type: "string", required: true, desc: "`enable`（非同期タスクとして実行）" },
         ],
-        note: "DashScope ネイティブAPI（非同期）。`img_url` を与えると画像→動画（i2v）になります。",
+        note: isI2V
+          ? "DashScope ネイティブAPI（非同期）。画像→動画: `img_url` の画像を先頭フレームとして、prompt の指示どおりに動かした動画を生成します。生成には数十秒〜数分かかるため、結果はタスク照会APIで取得します（下の「非同期処理」参照）。"
+          : "DashScope ネイティブAPI（非同期）。`img_url` を与えると画像→動画（i2v）になります。生成には数十秒〜数分かかるため、結果はタスク照会APIで取得します（下の「非同期処理」参照）。",
         params: [
           { name: "model", type: "string", required: true, desc: "モデル名。例: `" + m.model + "`" },
-          { name: "input.prompt", type: "string", desc: "生成プロンプト（t2v）" },
-          { name: "input.img_url", type: "string", desc: "入力画像URL（i2v）" },
-          { name: "parameters.resolution", type: "string", desc: "解像度。例: `720P`" },
-          { name: "parameters.duration", type: "integer", desc: "動画の長さ（秒）" },
+          ...(isI2V
+            ? [
+                { name: "input.img_url", type: "string", required: true, desc: "先頭フレームにする入力画像。公開URL または `data:image/png;base64,...`。形式: JPEG/PNG/BMP/WEBP、10MB以下。アスペクト比は出力動画に引き継がれます" },
+                { name: "input.prompt", type: "string", desc: "動きの指示プロンプト。日本語可、最大800文字程度（省略時は画像内容から自動推定）。例: 「カメラをゆっくり右にパンしながら人物が振り返る」" },
+              ]
+            : [
+                { name: "input.prompt", type: "string", required: true, desc: "生成プロンプト（t2v）。日本語可、最大800文字程度。被写体・動き・カメラワーク・スタイルを具体的に" },
+                { name: "input.img_url", type: "string", desc: "入力画像URL（i2v モデルで先頭フレームに使用）" },
+              ]),
+          { name: "input.negative_prompt", type: "string", desc: "避けたい要素（例: `モザイク, 手ぶれ, 文字`）。最大500文字程度" },
+          { name: "parameters.resolution", type: "string", desc: "解像度: `480P` / `720P` / `1080P`（対応値はモデルによる）。秒単価が解像度で変わります（$0.14〜$0.24/秒）" },
+          { name: "parameters.duration", type: "integer", desc: "動画の長さ（秒）。通常 5 または 10（デフォルト 5）。課金は「秒数 × 解像度別単価」" },
+          { name: "parameters.prompt_extend", type: "boolean", desc: "プロンプトの自動拡張（LLMによる詳細化）。デフォルト true。指示に忠実に従わせたい場合は false" },
+          { name: "parameters.seed", type: "integer", desc: "乱数シード（0〜2147483647）。同一入力+同一シードで再現性を確保" },
+          { name: "parameters.watermark", type: "boolean", desc: "生成動画への「AI生成」透かし付与。デフォルト false" },
         ],
+        asyncTask: asyncTaskRef([
+          { name: "output.video_url", type: "string", desc: "SUCCEEDED 時: 生成動画（MP4）のURL。有効期限24時間" },
+        ]),
       };
+    }
 
     case "tts":
       return {
         endpoint: `POST ${DASHSCOPE_BASE}/services/aigc/multimodal-generation/generation`,
         headers: [AUTH_HEADER, JSON_HEADER],
-        note: "DashScope ネイティブAPI。音声URL（または base64）を返します。",
+        note: "DashScope ネイティブAPI（同期）。レスポンスの `output.audio.url` に音声ファイル（WAV）のURLが返ります（有効期限24時間。期限内にダウンロードして保存してください）。",
         params: [
           { name: "model", type: "string", required: true, desc: "モデル名。例: `" + m.model + "`" },
-          { name: "input.text", type: "string", required: true, desc: "読み上げるテキスト" },
-          { name: "input.voice", type: "string", desc: "話者（音色）。例: `Cherry`" },
-          { name: "parameters.language_type", type: "string", desc: "言語の指定（対応モデルのみ）" },
+          { name: "input.text", type: "string", required: true, desc: "読み上げるテキスト（最大512トークン程度。課金はテキストのトークン数）" },
+          { name: "input.voice", type: "string", desc: "話者（音色）。例: `Cherry` / `Serena` / `Ethan` / `Chelsie`（対応話者はモデルによる）" },
+          { name: "parameters.language_type", type: "string", desc: "言語の指定（対応モデルのみ）。例: `Japanese`。省略時は自動判定" },
+          { name: "parameters.stream", type: "boolean", desc: "SSEストリーミングで音声チャンクを逐次受信（対応モデルのみ）" },
         ],
       };
 
@@ -199,12 +264,18 @@ export function apiRefFor(m: ModelLike): ApiRef {
           JSON_HEADER,
           { name: "X-DashScope-Async", type: "string", required: true, desc: "`enable`（ファイル文字起こしは非同期）" },
         ],
-        note: "DashScope ネイティブAPI。音声ファイルを文字起こし（モデルにより翻訳）します。",
+        note: "DashScope ネイティブAPI（非同期）。音声ファイルを文字起こし（モデルにより翻訳）します。結果はタスク照会APIで取得します（下の「非同期処理」参照）。",
         params: [
           { name: "model", type: "string", required: true, desc: "モデル名。例: `" + m.model + "`" },
-          { name: "input.file_urls", type: "array", required: true, desc: "音声ファイルURLの配列" },
-          { name: "parameters.language_hints", type: "array", desc: "言語ヒント。例: `[\"ja\", \"en\"]`" },
+          { name: "input.file_urls", type: "array", required: true, desc: "音声ファイルの公開URLの配列（複数ファイルを一括処理可）。形式: WAV/MP3/MP4/AAC/OPUS 等、1ファイル2GB以下" },
+          { name: "parameters.language_hints", type: "array", desc: "言語ヒント。例: `[\"ja\", \"en\"]`。指定すると認識精度が向上" },
+          { name: "parameters.channel_id", type: "array", desc: "処理対象の音声チャンネル。例: `[0]`（デフォルト。モノラル/左チャンネル）" },
+          { name: "parameters.diarization_enabled", type: "boolean", desc: "話者分離（対応モデルのみ）。デフォルト false" },
         ],
+        asyncTask: asyncTaskRef([
+          { name: "output.results[].transcription_url", type: "string", desc: "SUCCEEDED 時: 文字起こし結果（JSON）のURL。file_urls と同順の配列。有効期限24時間" },
+          { name: "output.results[].subtask_status", type: "string", desc: "ファイル単位の成否（一部ファイルのみ失敗することがあります）" },
+        ]),
       };
 
     default: // rerank

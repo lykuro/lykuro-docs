@@ -309,22 +309,85 @@ function dashscopeExamples(m: Model): Tab[] {
     asr: `"input": {"file_urls": ["https://example.com/audio.mp3"]}`,
     rerank: `"input": {"query": "東京の天気", "documents": ["今日は晴れ", "明日は雨"]}`,
   };
+  let body = input[m.kind];
+  if (m.kind === "video" && m.model.includes("i2v")) {
+    // 画像→動画(i2v): 先頭フレーム画像 img_url が必須。prompt は動きの指示。
+    body = `"input": {\n      "img_url": "https://example.com/first-frame.png",\n      "prompt": "画像の犬が波打ち際を走り出す、シネマティック"\n    },\n    "parameters": {"resolution": "720P", "duration": 5}`;
+  }
   const ep = `${DASHSCOPE_BASE}${path[m.kind]}`;
   const async = m.kind === "image" || m.kind === "video" || m.kind === "asr";
-  return [
+  // 成功時に結果を取り出すフィールド(kind 別)。
+  const resultField: Record<string, string> = {
+    image: `"results": [{"url": "https://dashscope-result-....png"}]`,
+    video: `"video_url": "https://dashscope-result-....mp4"`,
+    asr: `"results": [{"transcription_url": "https://dashscope-result-....json", "subtask_status": "SUCCEEDED"}]`,
+  };
+  const poll = `
+# レスポンス例（この時点では生成は未完了）:
+# {"output": {"task_id": "a1b2c3d4-...", "task_status": "PENDING"}, "request_id": "..."}
+
+# 2. 生成完了までポーリング（task_id は上記レスポンスの output.task_id。SUCCEEDED まで数十秒〜数分）
+curl ${DASHSCOPE_BASE}/tasks/YOUR_TASK_ID \\
+  -H "Authorization: Bearer sk-jp-YOUR_KEY"
+
+# レスポンス例（成功時）。結果URLの有効期限は24時間:
+# {"output": {"task_status": "SUCCEEDED", ${resultField[m.kind]}}, "usage": {...}, "request_id": "..."}`;
+  const tabs: Tab[] = [
     {
       label: "curl",
       lang: "bash",
       code: `# DashScope ネイティブAPI（/alibaba/api/v1）経由${async ? "・非同期タスク" : ""}
-curl ${ep} \\
+${async ? "# 1. タスク作成\n" : ""}curl ${ep} \\
   -H "Authorization: Bearer sk-jp-YOUR_KEY" \\
   -H "Content-Type: application/json" \\${async ? '\n  -H "X-DashScope-Async: enable" \\' : ""}
   -d '{
     "model": "${m.model}",
-    ${input[m.kind]}
-  }'`,
+    ${body}
+  }'${async ? poll : ""}`,
     },
   ];
+  if (async) {
+    // 取り出しフィールド(kind 別)の Python 式。
+    const pyResult: Record<string, string> = {
+      image: `task["output"]["results"][0]["url"]`,
+      video: `task["output"]["video_url"]`,
+      asr: `task["output"]["results"][0]["transcription_url"]`,
+    };
+    const pyBody = `{\n        "model": "${m.model}",\n        ${body.replace(/\n {4}/g, "\n        ")},\n    }`;
+    tabs.push({
+      label: "Python",
+      lang: "python",
+      code: `import time
+import requests
+
+BASE = "${DASHSCOPE_BASE}"
+HEADERS = {"Authorization": "Bearer sk-jp-YOUR_KEY"}
+
+# 1. タスク作成（非同期）— 即座に task_id が返る
+r = requests.post(
+    f"{BASE}${path[m.kind]}",
+    headers={**HEADERS, "X-DashScope-Async": "enable"},
+    json=${pyBody},
+)
+r.raise_for_status()
+task_id = r.json()["output"]["task_id"]
+
+# 2. 完了までポーリング（SUCCEEDED / FAILED / CANCELED で終了）
+while True:
+    task = requests.get(f"{BASE}/tasks/{task_id}", headers=HEADERS).json()
+    status = task["output"]["task_status"]
+    if status in ("SUCCEEDED", "FAILED", "CANCELED"):
+        break
+    time.sleep(5)  # PENDING / RUNNING の間は数秒間隔で照会
+
+# 3. 結果の取得（URLの有効期限は24時間。期限内にダウンロードして保存する）
+if status == "SUCCEEDED":
+    print(${pyResult[m.kind]})
+else:
+    print(status, task["output"].get("code"), task["output"].get("message"))`,
+    });
+  }
+  return tabs;
 }
 
 function buildExamples(m: Model): Tab[] {
@@ -514,6 +577,50 @@ export function ModelDetail({ model }: { model: Model }): React.ReactElement {
           ))}
         </tbody>
       </table>
+
+      {ref.asyncTask && (
+        <>
+          <div className={styles.detailSection}>非同期処理（タスク照会API）</div>
+          <div className={styles.endpoint}>{ref.asyncTask.pollEndpoint}</div>
+          <p className={styles.note}>{ref.asyncTask.note}</p>
+
+          <table className={styles.paramTable}>
+            <thead>
+              <tr>
+                <th>task_status</th>
+                <th>説明</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ref.asyncTask.statuses.map((s) => (
+                <tr key={s.status}>
+                  <td><code>{s.status}</code></td>
+                  <td>{s.desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <table className={styles.paramTable}>
+            <thead>
+              <tr>
+                <th>レスポンスフィールド</th>
+                <th>型</th>
+                <th>説明</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ref.asyncTask.responseFields.map((p) => (
+                <tr key={p.name}>
+                  <td><code>{p.name}</code></td>
+                  <td>{p.type}</td>
+                  <td>{p.desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
       <div className={styles.detailSection}>API 事例</div>
       <ExampleTabs key={model.id} tabs={buildExamples(model)} />
