@@ -360,6 +360,22 @@ export function apiRefFor(m: ModelLike): ApiRef {
     }
 
     case "tts":
+      // qwen3-tts 系 realtime は OpenAI-realtime 型(/api-ws/v1/realtime)。
+      // タスクプロトコル(/api-ws/v1/inference)では Model not found(2026-07-15 実測)。
+      if (m.model.includes("realtime")) {
+        return {
+          endpoint: `WSS ${WS_BASE}?model=${m.model}`,
+          headers: [AUTH_HEADER],
+          note: "OpenAI-realtime 型のWebSocket API。`session.update`(話者・音声形式)→ `input_text_buffer.append`(合成テキスト)→ `input_text_buffer.commit` を送信すると、`response.audio.delta`(base64音声)が届き `response.done` で完了します。課金は response.done の usage.characters(合成文字数、万文字単価)。2026-07-15 実機検証済み。",
+          params: [
+            { name: "model", type: "string (query)", required: true, desc: "接続URLの `?model=` で指定。例: `" + m.model + "`" },
+            { name: "session.voice", type: "string", desc: "話者。例: `Cherry`" },
+            { name: "session.response_format", type: "string", desc: "音声形式。例: `pcm`" },
+            { name: "session.sample_rate", type: "integer", desc: "サンプルレート。例: `24000`" },
+            { name: "input_text_buffer.append.text", type: "string", desc: "合成するテキスト(複数回 append 可)" },
+          ],
+        };
+      }
       if (isWsOnlyAudio(m.model)) {
         return {
           endpoint: `WSS ${WS_INFERENCE_URL}`,

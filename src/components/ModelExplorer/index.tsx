@@ -295,7 +295,42 @@ print(len(resp.data[0].embedding))`,
 // DashScope ネイティブAPI（/alibaba/api/v1）経由。スキーマは 2026-07-15 に
 // 実機検証済み。詳細は各モデルの公式リファレンスも参照。
 function dashscopeExamples(m: Model): Tab[] {
-  // WebSocket 専用の上流(CosyVoice / realtime 系): DashScope タスクプロトコル。
+  // qwen3-tts 系 realtime: OpenAI-realtime 型(/api-ws/v1/realtime)。
+  if (m.kind === "tts" && m.model.includes("realtime")) {
+    return [
+      {
+        label: "Node.js",
+        lang: "javascript",
+        code: `// OpenAI-realtime 型の WebSocket TTS。npm i ws
+// 課金は response.done の usage.characters（合成文字数、万文字単価）。
+const WebSocket = require("ws");
+const fs = require("fs");
+
+const ws = new WebSocket(
+  "wss://api.lykuro.ai/alibaba/api-ws/v1/realtime?model=${m.model}",
+  { headers: { Authorization: "Bearer sk-jp-YOUR_KEY" } },
+);
+const chunks = [];
+
+ws.on("open", () => {
+  ws.send(JSON.stringify({ type: "session.update",
+    session: { voice: "Cherry", response_format: "pcm", sample_rate: 24000, mode: "server_commit" } }));
+  ws.send(JSON.stringify({ type: "input_text_buffer.append", text: "こんにちは、Lykuro へようこそ。" }));
+  ws.send(JSON.stringify({ type: "input_text_buffer.commit" }));
+});
+ws.on("message", (data) => {
+  const ev = JSON.parse(data.toString());
+  if (ev.type === "response.audio.delta") chunks.push(Buffer.from(ev.delta, "base64"));
+  if (ev.type === "response.done") {
+    fs.writeFileSync("output.pcm", Buffer.concat(chunks)); // 24kHz 16bit mono PCM
+    console.log("usage:", JSON.stringify(ev.response?.usage));
+    ws.close();
+  }
+});`,
+      },
+    ];
+  }
+  // WebSocket 専用の上流(CosyVoice): DashScope タスクプロトコル。
   if (m.kind === "tts" && isWsOnlyAudio(m.model)) {
     return [
       {
