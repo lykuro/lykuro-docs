@@ -220,17 +220,44 @@ export function apiRefFor(m: ModelLike): ApiRef {
 
     case "video": {
       const sub = videoSubtype(m.model);
+      const isHHNote = m.model.startsWith("happyhorse")
+        ? "HappyHorse 系は入力メディアを `input.media`（url を持つオブジェクトの配列）で指定し、`parameters` はオブジェクト自体が必須です（指定なしでも `{}` を送る）。"
+        : "";
       const noteBySub: Record<VideoSubtype, string> = {
         t2v: "テキスト→動画: prompt の記述から動画を生成します。",
-        i2v: "画像→動画: `img_url` の画像を先頭フレームとして、prompt の指示どおりに動かした動画を生成します。",
+        i2v: m.model.startsWith("happyhorse")
+          ? "画像→動画: `media` の画像を先頭フレームとして、prompt の指示どおりに動かした動画を生成します。"
+          : "画像→動画: `img_url` の画像を先頭フレームとして、prompt の指示どおりに動かした動画を生成します。",
         kf2v: "先頭・末尾フレーム→動画: `first_frame_url` と `last_frame_url` の2枚の画像をつなぐ中間の動きを補間した動画を生成します。",
-        r2v: "参照→動画: `ref_images_url` の参照画像の人物・キャラクターの外観を維持したまま、prompt のシーン・動きで動画を生成します。",
-        edit: "動画編集: `video_url` の入力動画を prompt の指示（スタイル変換・要素の追加/削除・背景差し替え等）で編集した動画を生成します。出力の長さは入力動画に従います。",
+        r2v: m.model.startsWith("happyhorse")
+          ? "参照→動画: `media` の参照画像の人物・キャラクターの外観を維持したまま、prompt のシーン・動きで動画を生成します。"
+          : "参照→動画: `ref_images_url` の参照画像の人物・キャラクターの外観を維持したまま、prompt のシーン・動きで動画を生成します。",
+        edit: m.model.startsWith("happyhorse")
+          ? "動画編集: `media` の入力動画を prompt の指示（スタイル変換・要素の追加/削除・背景差し替え等）で編集した動画を生成します。出力の長さは入力動画に従います。"
+          : "動画編集: `video_url` の入力動画を prompt の指示（スタイル変換・要素の追加/削除・背景差し替え等）で編集した動画を生成します。出力の長さは入力動画に従います。",
         animate: m.model.includes("mix")
           ? "動画人物差し替え: `video_url` の動画内の人物を、`image_url` のキャラクター画像の外観に差し替えた動画を生成します。"
           : "画像→アクション動画: `image_url` のキャラクター画像を、`video_url` の動作参照動画の動きで動かした動画を生成します。",
       };
-      const inputBySub: Record<VideoSubtype, ApiParam[]> = {
+      // HappyHorse 1.0 系は入力メディアを input.media（{"url": ...} の配列）で
+      // 受け取る独自スキーマ(2026-07-15 実機検証)。Wan 系は公開 DashScope 仕様
+      // (img_url 等)に従う。
+      const isHH = m.model.startsWith("happyhorse");
+      const hhInputBySub: Partial<Record<VideoSubtype, ApiParam[]>> = {
+        i2v: [
+          { name: "input.media", type: "array", required: true, desc: "先頭フレームにする入力画像。`[{\"url\": \"https://...\"}]` 形式（要素は url を持つオブジェクト）。公開URLのみ。アスペクト比は出力動画に引き継がれます" },
+          { name: "input.prompt", type: "string", desc: "動きの指示プロンプト。日本語可、最大800文字程度（省略時は画像内容から自動推定）" },
+        ],
+        r2v: [
+          { name: "input.media", type: "array", required: true, desc: "参照画像。`[{\"url\": \"https://...\"}, ...]` 形式（1〜複数枚）。人物・キャラクターの外観がこの画像に一致するよう維持されます" },
+          { name: "input.prompt", type: "string", desc: "シーン・動きの指示プロンプト。参照画像の被写体をどう動かすかを記述（推奨）" },
+        ],
+        edit: [
+          { name: "input.media", type: "array", required: true, desc: "編集対象・参照素材。`[{\"url\": \"https://...\", \"type\": \"video\"}]` 形式（各要素は url と type が必須。type 例: `video`=編集対象動画 / `image`=参照画像）" },
+          { name: "input.prompt", type: "string", required: true, desc: "編集指示。例: 「背景を夜の街に差し替える」「アニメ調に変換する」" },
+        ],
+      };
+      const wanInputBySub: Record<VideoSubtype, ApiParam[]> = {
         t2v: [
           { name: "input.prompt", type: "string", required: true, desc: "生成プロンプト。日本語可、最大800文字程度。被写体・動き・カメラワーク・スタイルを具体的に" },
         ],
@@ -257,6 +284,10 @@ export function apiRefFor(m: ModelLike): ApiRef {
           { name: "input.video_url", type: "string", required: true, desc: "動作参照動画URL（この動画の動き・ポーズを適用）" },
         ],
       };
+      const inputBySub: Record<VideoSubtype, ApiParam[]> = {
+        ...wanInputBySub,
+        ...(isHH ? hhInputBySub : {}),
+      };
       // 生成系(t2v/i2v/kf2v/r2v)は長さ・解像度を指定、編集系(edit/animate)は入力動画に従う。
       const generative = sub === "t2v" || sub === "i2v" || sub === "kf2v" || sub === "r2v";
       return {
@@ -266,7 +297,7 @@ export function apiRefFor(m: ModelLike): ApiRef {
           JSON_HEADER,
           { name: "X-DashScope-Async", type: "string", required: true, desc: "`enable`（非同期タスクとして実行）" },
         ],
-        note: `DashScope ネイティブAPI（非同期）。${noteBySub[sub]}生成には数十秒〜数分かかるため、結果はタスク照会APIで取得します（下の「非同期処理」参照）。`,
+        note: `DashScope ネイティブAPI（非同期）。${noteBySub[sub]}${isHHNote}生成には数十秒〜数分かかるため、結果はタスク照会APIで取得します（下の「非同期処理」参照）。`,
         params: [
           { name: "model", type: "string", required: true, desc: "モデル名。例: `" + m.model + "`" },
           ...inputBySub[sub],

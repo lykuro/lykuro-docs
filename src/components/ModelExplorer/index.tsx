@@ -321,7 +321,14 @@ function dashscopeExamples(m: Model): Tab[] {
       edit: `"input": {\n      "video_url": "https://example.com/source.mp4",\n      "prompt": "背景を夜の街に差し替え、全体をアニメ調に変換する"\n    },\n    "parameters": {"watermark": false}`,
       animate: `"input": {\n      "image_url": "https://example.com/character.png",\n      "video_url": "https://example.com/dance-motion.mp4"\n    },\n    "parameters": {"watermark": false}`,
     };
-    body = videoBody[videoSubtype(m.model)];
+    // HappyHorse 1.0 系は input.media({"url": ...} の配列)スキーマ(実機検証済)。
+    const hhVideoBody: Record<string, string> = {
+      ...videoBody,
+      i2v: `"input": {\n      "media": [{"url": "https://example.com/first-frame.png"}],\n      "prompt": "画像の犬が波打ち際を走り出す、シネマティック"\n    },\n    "parameters": {"resolution": "720P", "duration": 5}`,
+      r2v: `"input": {\n      "media": [{"url": "https://example.com/character.png"}],\n      "prompt": "参照キャラクターが雨の街を歩く、ローアングル"\n    },\n    "parameters": {"resolution": "720P", "duration": 5}`,
+      edit: `"input": {\n      "media": [{"url": "https://example.com/source.mp4", "type": "video"}],\n      "prompt": "背景を夜の街に差し替え、全体をアニメ調に変換する"\n    },\n    "parameters": {}`,
+    };
+    body = (m.model.startsWith("happyhorse") ? hhVideoBody : videoBody)[videoSubtype(m.model)];
   }
   const ep = `${DASHSCOPE_BASE}${path[m.kind]}`;
   const async = m.kind === "image" || m.kind === "video" || m.kind === "asr";
