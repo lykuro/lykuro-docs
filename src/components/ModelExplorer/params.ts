@@ -120,6 +120,25 @@ function chatParams(m: ModelLike): ApiParam[] {
   return params;
 }
 
+// 同期 multimodal-generation(input.messages)方式の画像モデル(2026-07-15 実機検証:
+// text2image への非同期呼び出しは AccessDenied)。qwen-image-edit系 / z-image /
+// wan2.5-i2i / wan2.6+-image 系が該当。
+export function isSyncMessagesImage(model: string): boolean {
+  return (
+    model.includes("image-edit") ||
+    model.includes("-i2i") ||
+    model.startsWith("z-image") ||
+    /^wan2\.\d+-image/.test(model)
+  );
+}
+
+// 上流が WebSocket 専用 API のため Lykuro ゲートウェイ(HTTP透過)経由では
+// 現在利用できない音声モデル(cosyvoice / realtime 系。/api-ws/v1/inference は
+// ルート未提供、2026-07-15 確認)。
+export function isWsOnlyAudio(model: string): boolean {
+  return model.startsWith("cosyvoice") || model.includes("realtime");
+}
+
 // 動画系モデルのサブタイプ。モデル名から判定する(t2v/i2v/kf2v/r2v/動画編集/animate)。
 export type VideoSubtype = "t2v" | "i2v" | "kf2v" | "r2v" | "edit" | "animate";
 
@@ -195,6 +214,24 @@ export function apiRefFor(m: ModelLike): ApiRef {
       };
 
     case "image":
+      // 同期(messages)方式: 画像編集系・z-image・wan2.6+ 統合画像モデル。
+      if (isSyncMessagesImage(m.model)) {
+        const isEdit = m.model.includes("image-edit") || m.model.includes("-i2i");
+        return {
+          endpoint: `POST ${DASHSCOPE_BASE}/services/aigc/multimodal-generation/generation`,
+          headers: [AUTH_HEADER, JSON_HEADER],
+          note:
+            (isEdit
+              ? "画像編集: `messages` の入力画像(1〜3枚)を text の指示で編集します。"
+              : "画像生成・編集: `messages` にテキスト(と任意の参照画像)を渡して画像を生成します。") +
+            "同期APIで、レスポンスの `output.choices[0].message.content[].image` に生成画像URL(有効期限あり)が返ります。X-DashScope-Async ヘッダーは付けないでください(非同期呼び出し非対応。2026-07-15 実機検証)。",
+          params: [
+            { name: "model", type: "string", required: true, desc: "モデル名。例: `" + m.model + "`" },
+            { name: "input.messages", type: "array", required: true, desc: "`[{\"role\": \"user\", \"content\": [...]}]`。content は `{\"image\": \"<公開URL>\"}` と `{\"text\": \"指示\"}` オブジェクトの配列" + (isEdit ? "。画像は1〜3枚必須" : "。テキストのみでも生成可") },
+            { name: "parameters", type: "object", desc: "生成オプション(対応項目はモデルによる)。省略可" },
+          ],
+        };
+      }
       return {
         endpoint: `POST ${DASHSCOPE_BASE}/services/aigc/text2image/image-synthesis`,
         headers: [
@@ -321,10 +358,28 @@ export function apiRefFor(m: ModelLike): ApiRef {
     }
 
     case "tts":
+      if (isWsOnlyAudio(m.model)) {
+        return {
+          endpoint: "WebSocket 専用（現在 Lykuro 経由では利用不可）",
+          headers: [],
+          note: "このモデルは上流が WebSocket 専用 API（DashScope /api-ws/v1/inference）のため、Lykuro ゲートウェイ経由では現在ご利用いただけません。REST で利用できる TTS は qwen3-tts-flash 等をご利用ください。対応をご希望の場合はサポートまでご連絡ください。",
+          params: [],
+        };
+      }
+      if (m.model.startsWith("qwen-voice")) {
+        return {
+          endpoint: `POST ${DASHSCOPE_BASE}/services/aigc/multimodal-generation/generation`,
+          headers: [AUTH_HEADER, JSON_HEADER],
+          note: "音声デザイン／話者登録（ボイスクローン）用の専用モデルです。リクエスト形式は通常のTTSと異なります。詳細は下部の「公式 API リファレンス」を参照してください。",
+          params: [
+            { name: "model", type: "string", required: true, desc: "モデル名。例: `" + m.model + "`" },
+          ],
+        };
+      }
       return {
         endpoint: `POST ${DASHSCOPE_BASE}/services/aigc/multimodal-generation/generation`,
         headers: [AUTH_HEADER, JSON_HEADER],
-        note: "DashScope ネイティブAPI（同期）。レスポンスの `output.audio.url` に音声ファイル（WAV）のURLが返ります（有効期限24時間。期限内にダウンロードして保存してください）。",
+        note: "DashScope ネイティブAPI（同期）。レスポンスの `output.audio.url` に音声ファイル（WAV）のURLが返ります（有効期限24時間。期限内にダウンロードして保存してください。2026-07-15 実機検証）。",
         params: [
           { name: "model", type: "string", required: true, desc: "モデル名。例: `" + m.model + "`" },
           { name: "input.text", type: "string", required: true, desc: "読み上げるテキスト（最大512トークン程度。課金はテキストのトークン数）" },
@@ -334,7 +389,29 @@ export function apiRefFor(m: ModelLike): ApiRef {
         ],
       };
 
-    case "asr":
+    case "asr": {
+      if (isWsOnlyAudio(m.model)) {
+        return {
+          endpoint: "WebSocket 専用（現在 Lykuro 経由では利用不可）",
+          headers: [],
+          note: "このモデルは上流が WebSocket 専用のリアルタイム音声認識APIのため、Lykuro ゲートウェイ経由では現在ご利用いただけません。ファイル文字起こしは fun-asr / qwen3-asr-flash-filetrans、同期認識は qwen3-asr-flash をご利用ください。",
+          params: [],
+        };
+      }
+      // qwen3-asr-flash(非 filetrans)は同期 multimodal(messages)方式(2026-07-15 実機検証)。
+      const isFiletrans = m.model.includes("filetrans") || m.model.startsWith("fun-asr");
+      if (!isFiletrans) {
+        return {
+          endpoint: `POST ${DASHSCOPE_BASE}/services/aigc/multimodal-generation/generation`,
+          headers: [AUTH_HEADER, JSON_HEADER],
+          note: "DashScope ネイティブAPI（同期）。音声ファイル（URL）を1リクエストで文字起こしし、レスポンスの `output.choices[0].message.content[0].text` に結果が返ります。長時間ファイルの一括処理には非同期の filetrans 系モデルをご利用ください。",
+          params: [
+            { name: "model", type: "string", required: true, desc: "モデル名。例: `" + m.model + "`" },
+            { name: "input.messages", type: "array", required: true, desc: "`[{\"role\": \"user\", \"content\": [{\"audio\": \"<音声ファイルの公開URL>\"}]}]`" },
+            { name: "parameters.asr_options", type: "object", desc: "認識オプション（言語指定等、対応項目はモデルによる）。省略可" },
+          ],
+        };
+      }
       return {
         endpoint: `POST ${DASHSCOPE_BASE}/services/audio/asr/transcription`,
         headers: [
@@ -355,18 +432,17 @@ export function apiRefFor(m: ModelLike): ApiRef {
           { name: "output.results[].subtask_status", type: "string", desc: "ファイル単位の成否（一部ファイルのみ失敗することがあります）" },
         ]),
       };
+    }
 
     default: // rerank
       return {
         endpoint: `POST ${DASHSCOPE_BASE}/services/rerank/text-rerank/text-rerank`,
         headers: [AUTH_HEADER, JSON_HEADER],
-        note: "DashScope ネイティブAPI。クエリに対する文書の関連度スコアを返します。",
+        note: "DashScope ネイティブAPI（同期）。クエリに対する各文書の関連度を `results[].relevance_score`（`index` は documents の添字）で返します。query / documents は input に入れ子にせずトップレベルに指定します（2026-07-15 実機検証）。top_n / return_documents は現在このモデルでは無視され、常に全文書のスコアが返ります。",
         params: [
           { name: "model", type: "string", required: true, desc: "モデル名。例: `" + m.model + "`" },
-          { name: "input.query", type: "string", required: true, desc: "検索クエリ" },
-          { name: "input.documents", type: "array", required: true, desc: "並べ替える文書の配列" },
-          { name: "parameters.top_n", type: "integer", desc: "返す上位件数" },
-          { name: "parameters.return_documents", type: "boolean", desc: "結果に文書本文を含めるか" },
+          { name: "query", type: "string", required: true, desc: "検索クエリ（トップレベルに指定。`input.query` ではない）" },
+          { name: "documents", type: "array", required: true, desc: "並べ替える文書（文字列）の配列（トップレベルに指定）" },
         ],
       };
   }

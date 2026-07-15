@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import CodeBlock from "@theme/CodeBlock";
 import styles from "./styles.module.css";
 import data from "@site/src/data/models.generated.json";
-import { apiRefFor, videoSubtype } from "./params";
+import { apiRefFor, videoSubtype, isSyncMessagesImage, isWsOnlyAudio } from "./params";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 export type Model = {
@@ -292,9 +292,90 @@ print(len(resp.data[0].embedding))`,
   ];
 }
 
-// DashScope ネイティブAPI（/alibaba/api/v1）経由。
-// 詳細パラメータは Alibaba Model Studio のモデル仕様を参照してください。
+// DashScope ネイティブAPI（/alibaba/api/v1）経由。スキーマは 2026-07-15 に
+// 実機検証済み。詳細は各モデルの公式リファレンスも参照。
 function dashscopeExamples(m: Model): Tab[] {
+  // WebSocket 専用の上流(CosyVoice / realtime 系)はゲートウェイ経由では未提供。
+  if ((m.kind === "tts" || m.kind === "asr") && isWsOnlyAudio(m.model)) {
+    return [
+      {
+        label: "curl",
+        lang: "bash",
+        code: `# ${m.model} は上流が WebSocket 専用 API のため、Lykuro ゲートウェイ経由では現在利用できません。
+# REST で利用できる代替:
+#   TTS      → qwen3-tts-flash
+#   音声認識 → qwen3-asr-flash（同期） / fun-asr・qwen3-asr-flash-filetrans（ファイル一括・非同期）`,
+      },
+    ];
+  }
+  // 音声デザイン/話者登録の専用モデル(リクエスト形式が特殊)。
+  if (m.kind === "tts" && m.model.startsWith("qwen-voice")) {
+    return [
+      {
+        label: "curl",
+        lang: "bash",
+        code: `# ${m.model} は音声デザイン／話者登録（ボイスクローン）用の専用モデルです。
+# リクエスト形式は通常のTTSと異なります。下部の「公式 API リファレンス」を参照してください。`,
+      },
+    ];
+  }
+  // 同期 multimodal(messages)方式の画像モデル(画像編集系・z-image・wan2.6+)。
+  if (m.kind === "image" && isSyncMessagesImage(m.model)) {
+    const isEdit = m.model.includes("image-edit") || m.model.includes("-i2i");
+    const content = isEdit
+      ? `[\n          {"image": "https://example.com/source.png"},\n          {"text": "背景を夜の街に差し替える"}\n        ]`
+      : `[{"text": "富士山を背景にした桜並木、写実的"}]`;
+    return [
+      {
+        label: "curl",
+        lang: "bash",
+        code: `# DashScope ネイティブAPI（/alibaba/api/v1）経由・同期
+# 注意: X-DashScope-Async は付けない（このモデルは非同期呼び出し非対応）
+curl ${DASHSCOPE_BASE}/services/aigc/multimodal-generation/generation \\
+  -H "Authorization: Bearer sk-jp-YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "${m.model}",
+    "input": {
+      "messages": [{
+        "role": "user",
+        "content": ${content}
+      }]
+    }
+  }'
+
+# レスポンス例（output.choices[0].message.content[].image が生成画像URL。有効期限あり）:
+# {"output": {"choices": [{"finish_reason": "stop", "message": {"role": "assistant",
+#   "content": [{"image": "https://dashscope-result-....png?..."}]}}]},
+#  "usage": {"width": 768, "height": 1376, "image_count": 1}, "request_id": "..."}`,
+      },
+    ];
+  }
+  // qwen3-asr-flash(非 filetrans)は同期 multimodal(messages)方式。
+  if (m.kind === "asr" && !(m.model.includes("filetrans") || m.model.startsWith("fun-asr"))) {
+    return [
+      {
+        label: "curl",
+        lang: "bash",
+        code: `# DashScope ネイティブAPI（/alibaba/api/v1）経由・同期
+curl ${DASHSCOPE_BASE}/services/aigc/multimodal-generation/generation \\
+  -H "Authorization: Bearer sk-jp-YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "${m.model}",
+    "input": {
+      "messages": [{
+        "role": "user",
+        "content": [{"audio": "https://example.com/audio.mp3"}]
+      }]
+    }
+  }'
+
+# レスポンス例（output.choices[0].message.content[0].text が文字起こし結果）:
+# {"output": {"choices": [{"message": {"content": [{"text": "こんにちは…"}]}}]}, "usage": {...}}`,
+      },
+    ];
+  }
   const path: Record<string, string> = {
     image: "/services/aigc/text2image/image-synthesis",
     video: "/services/aigc/video-generation/video-synthesis",
@@ -306,8 +387,9 @@ function dashscopeExamples(m: Model): Tab[] {
     image: `"input": {"prompt": "富士山を背景にした桜並木、写実的"}`,
     video: `"input": {"prompt": "波打ち際を走る犬、シネマティック"}`,
     tts: `"input": {"text": "こんにちは、Lykuro へようこそ。", "voice": "Cherry"}`,
-    asr: `"input": {"file_urls": ["https://example.com/audio.mp3"]}`,
-    rerank: `"input": {"query": "東京の天気", "documents": ["今日は晴れ", "明日は雨"]}`,
+    asr: `"input": {"file_urls": ["https://example.com/audio.mp3"]},\n    "parameters": {"language_hints": ["ja"]}`,
+    // rerank は input 入れ子ではなくトップレベル(実機検証 2026-07-15)。
+    rerank: `"query": "東京の天気",\n    "documents": ["今日は晴れ", "明日は雨"]`,
   };
   let body = input[m.kind];
   if (m.kind === "video") {
@@ -348,6 +430,17 @@ curl ${DASHSCOPE_BASE}/tasks/YOUR_TASK_ID \\
 
 # レスポンス例（成功時）。結果URLの有効期限は24時間:
 # {"output": {"task_status": "SUCCEEDED", ${resultField[m.kind]}}, "usage": {...}, "request_id": "..."}`;
+  // 同期APIのレスポンス例(実測 2026-07-15)。
+  const syncNote: Record<string, string> = {
+    tts: `
+
+# レスポンス例（output.audio.url が音声WAVのURL。有効期限24時間）:
+# {"output": {"audio": {"id": "audio_...", "url": "https://dashscope-result-....wav?...", "expires_at": ...}}, "usage": {...}}`,
+    rerank: `
+
+# レスポンス例（index は documents の添字。全文書のスコアが返る）:
+# {"results": [{"index": 0, "relevance_score": 0.58}, {"index": 1, "relevance_score": 0.53}]}`,
+  };
   const tabs: Tab[] = [
     {
       label: "curl",
@@ -359,7 +452,7 @@ ${async ? "# 1. タスク作成\n" : ""}curl ${ep} \\
   -d '{
     "model": "${m.model}",
     ${body}
-  }'${async ? poll : ""}`,
+  }'${async ? poll : (syncNote[m.kind] ?? "")}`,
     },
   ];
   if (async) {
