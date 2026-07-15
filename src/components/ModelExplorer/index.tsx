@@ -295,16 +295,100 @@ print(len(resp.data[0].embedding))`,
 // DashScope ネイティブAPI（/alibaba/api/v1）経由。スキーマは 2026-07-15 に
 // 実機検証済み。詳細は各モデルの公式リファレンスも参照。
 function dashscopeExamples(m: Model): Tab[] {
-  // WebSocket 専用の上流(CosyVoice / realtime 系)はゲートウェイ経由では未提供。
-  if ((m.kind === "tts" || m.kind === "asr") && isWsOnlyAudio(m.model)) {
+  // WebSocket 専用の上流(CosyVoice / realtime 系): DashScope タスクプロトコル。
+  if (m.kind === "tts" && isWsOnlyAudio(m.model)) {
     return [
       {
-        label: "curl",
-        lang: "bash",
-        code: `# ${m.model} は上流が WebSocket 専用 API のため、Lykuro ゲートウェイ経由では現在利用できません。
-# REST で利用できる代替:
-#   TTS      → qwen3-tts-flash
-#   音声認識 → qwen3-asr-flash（同期） / fun-asr・qwen3-asr-flash-filetrans（ファイル一括・非同期）`,
+        label: "Node.js",
+        lang: "javascript",
+        code: `// WebSocket TTS（DashScope タスクプロトコル）。npm i ws
+// 課金は送信テキストの文字数（万文字単価）。2026-07-15 実機検証済み。
+const WebSocket = require("ws");
+const crypto = require("crypto");
+const fs = require("fs");
+
+const taskId = crypto.randomUUID();
+const ws = new WebSocket("wss://api.lykuro.ai/alibaba/api-ws/v1/inference", {
+  headers: { Authorization: "Bearer sk-jp-YOUR_KEY" },
+});
+const chunks = [];
+
+ws.on("open", () => {
+  ws.send(JSON.stringify({
+    header: { action: "run-task", task_id: taskId, streaming: "duplex" },
+    payload: {
+      task_group: "audio", task: "tts", function: "SpeechSynthesizer",
+      model: "${m.model}",
+      parameters: { text_type: "PlainText", voice: "longwan_v3", format: "mp3", sample_rate: 22050 },
+      input: {},
+    },
+  }));
+});
+ws.on("message", (data, isBinary) => {
+  if (isBinary) { chunks.push(data); return; } // 音声はバイナリフレームで届く
+  const ev = JSON.parse(data.toString());
+  if (ev.header.event === "task-started") {
+    ws.send(JSON.stringify({ header: { action: "continue-task", task_id: taskId },
+      payload: { input: { text: "こんにちは、Lykuro へようこそ。" } } }));
+    ws.send(JSON.stringify({ header: { action: "finish-task", task_id: taskId },
+      payload: { input: {} } }));
+  }
+  if (ev.header.event === "task-finished") {
+    fs.writeFileSync("output.mp3", Buffer.concat(chunks));
+    ws.close();
+  }
+  if (ev.header.event === "task-failed") {
+    console.error(ev.header.error_code, ev.header.error_message);
+    ws.close();
+  }
+});`,
+      },
+    ];
+  }
+  if (m.kind === "asr" && isWsOnlyAudio(m.model)) {
+    return [
+      {
+        label: "Node.js",
+        lang: "javascript",
+        code: `// WebSocket リアルタイム音声認識（DashScope タスクプロトコル）。npm i ws
+// 課金は送信音声の秒数。音声は無圧縮 PCM 系（pcm / wav, 16bit mono）のみ
+// （圧縮形式は接続がポリシー違反 close 1008 で拒否されます）。
+const WebSocket = require("ws");
+const crypto = require("crypto");
+const fs = require("fs");
+
+const taskId = crypto.randomUUID();
+const ws = new WebSocket("wss://api.lykuro.ai/alibaba/api-ws/v1/inference", {
+  headers: { Authorization: "Bearer sk-jp-YOUR_KEY" },
+});
+
+ws.on("open", () => {
+  ws.send(JSON.stringify({
+    header: { action: "run-task", task_id: taskId, streaming: "duplex" },
+    payload: {
+      task_group: "audio", task: "asr", function: "recognition",
+      model: "${m.model}",
+      parameters: { format: "pcm", sample_rate: 16000 },
+      input: {},
+    },
+  }));
+});
+ws.on("message", (data, isBinary) => {
+  if (isBinary) return;
+  const ev = JSON.parse(data.toString());
+  if (ev.header.event === "task-started") {
+    // 音声(16kHz 16bit mono PCM)をバイナリフレームで逐次送信
+    ws.send(fs.readFileSync("input.pcm"));
+    ws.send(JSON.stringify({ header: { action: "finish-task", task_id: taskId },
+      payload: { input: {} } }));
+  }
+  if (ev.header.event === "result-generated") {
+    console.log(JSON.stringify(ev.payload?.output)); // 認識結果(逐次)
+  }
+  if (ev.header.event === "task-finished" || ev.header.event === "task-failed") {
+    ws.close();
+  }
+});`,
       },
     ];
   }

@@ -132,12 +132,14 @@ export function isSyncMessagesImage(model: string): boolean {
   );
 }
 
-// 上流が WebSocket 専用 API のため Lykuro ゲートウェイ(HTTP透過)経由では
-// 現在利用できない音声モデル(cosyvoice / realtime 系。/api-ws/v1/inference は
-// ルート未提供、2026-07-15 確認)。
+// 上流が WebSocket 専用 API(DashScope タスクプロトコル /api-ws/v1/inference)の
+// 音声モデル(cosyvoice / realtime 系)。2026-07-15 よりゲートウェイ対応済み
+// (課金はゲートウェイ計測: TTS=送信文字数、ASR=送信音声秒数[PCM系のみ])。
 export function isWsOnlyAudio(model: string): boolean {
   return model.startsWith("cosyvoice") || model.includes("realtime");
 }
+
+export const WS_INFERENCE_URL = "wss://api.lykuro.ai/alibaba/api-ws/v1/inference";
 
 // 動画系モデルのサブタイプ。モデル名から判定する(t2v/i2v/kf2v/r2v/動画編集/animate)。
 export type VideoSubtype = "t2v" | "i2v" | "kf2v" | "r2v" | "edit" | "animate";
@@ -360,10 +362,18 @@ export function apiRefFor(m: ModelLike): ApiRef {
     case "tts":
       if (isWsOnlyAudio(m.model)) {
         return {
-          endpoint: "WebSocket 専用（現在 Lykuro 経由では利用不可）",
-          headers: [],
-          note: "このモデルは上流が WebSocket 専用 API（DashScope /api-ws/v1/inference）のため、Lykuro ゲートウェイ経由では現在ご利用いただけません。REST で利用できる TTS は qwen3-tts-flash 等をご利用ください。対応をご希望の場合はサポートまでご連絡ください。",
-          params: [],
+          endpoint: `WSS ${WS_INFERENCE_URL}`,
+          headers: [AUTH_HEADER],
+          note: "DashScope タスクプロトコル（WebSocket）。接続後 `run-task` → `continue-task`（合成テキスト、複数回可）→ `finish-task` を送信し、音声はバイナリフレームで届きます（`task-finished` で完了）。課金はゲートウェイが送信テキストの文字数を計測して行います（万文字単価。task-failed 時は課金されません）。cosyvoice-v3 系は 2026-07-15 実機検証済み。",
+          params: [
+            { name: "header.action", type: "string", required: true, desc: "`run-task` → `continue-task` → `finish-task` の順に送信。task_id（UUID）を全メッセージで揃える" },
+            { name: "payload.model", type: "string", required: true, desc: "run-task で指定。例: `" + m.model + "`" },
+            { name: "payload.task_group / task / function", type: "string", required: true, desc: "TTS は `audio` / `tts` / `SpeechSynthesizer` 固定" },
+            { name: "payload.parameters.voice", type: "string", desc: "話者。例: `longwan_v3`（対応話者はモデルの公式リファレンス参照。非対応話者は task-failed[418]）" },
+            { name: "payload.parameters.format", type: "string", desc: "音声形式: `mp3` / `wav` / `pcm`" },
+            { name: "payload.parameters.sample_rate", type: "integer", desc: "サンプルレート。例: `22050`" },
+            { name: "payload.input.text", type: "string", desc: "continue-task で送る合成テキスト（分割送信可。合計文字数が課金対象）" },
+          ],
         };
       }
       if (m.model.startsWith("qwen-voice")) {
@@ -392,10 +402,16 @@ export function apiRefFor(m: ModelLike): ApiRef {
     case "asr": {
       if (isWsOnlyAudio(m.model)) {
         return {
-          endpoint: "WebSocket 専用（現在 Lykuro 経由では利用不可）",
-          headers: [],
-          note: "このモデルは上流が WebSocket 専用のリアルタイム音声認識APIのため、Lykuro ゲートウェイ経由では現在ご利用いただけません。ファイル文字起こしは fun-asr / qwen3-asr-flash-filetrans、同期認識は qwen3-asr-flash をご利用ください。",
-          params: [],
+          endpoint: `WSS ${WS_INFERENCE_URL}`,
+          headers: [AUTH_HEADER],
+          note: "DashScope タスクプロトコル（WebSocket）。接続後 `run-task` を送信し、音声をバイナリフレームで逐次送信、認識結果は `result-generated` イベントで届きます。課金はゲートウェイが送信音声の秒数を計測して行います（秒単価）。このため音声形式は無圧縮 PCM 系（`pcm` / `wav`）のみ利用できます — 圧縮形式（opus 等）を指定すると接続がポリシー違反（close 1008）で拒否されます。",
+          params: [
+            { name: "header.action", type: "string", required: true, desc: "`run-task` で認識開始、`finish-task` で終了。task_id（UUID）を揃える" },
+            { name: "payload.model", type: "string", required: true, desc: "run-task で指定。例: `" + m.model + "`" },
+            { name: "payload.parameters.format", type: "string", required: true, desc: "`pcm` または `wav`（16bit mono。圧縮形式は不可 — 上記参照）" },
+            { name: "payload.parameters.sample_rate", type: "integer", desc: "サンプルレート。例: `16000`（既定）" },
+            { name: "(バイナリフレーム)", type: "binary", required: true, desc: "音声データを WebSocket バイナリフレームで逐次送信" },
+          ],
         };
       }
       // qwen3-asr-flash(非 filetrans)は同期 multimodal(messages)方式(2026-07-15 実機検証)。
