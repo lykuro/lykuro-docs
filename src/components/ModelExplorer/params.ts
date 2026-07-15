@@ -394,9 +394,9 @@ export function apiRefFor(m: ModelLike): ApiRef {
       }
       if (m.model.startsWith("qwen-voice")) {
         return {
-          endpoint: `POST ${DASHSCOPE_BASE}/services/aigc/multimodal-generation/generation`,
-          headers: [AUTH_HEADER, JSON_HEADER],
-          note: "音声デザイン／話者登録（ボイスクローン）用の専用モデルです。リクエスト形式は通常のTTSと異なります。詳細は下部の「公式 API リファレンス」を参照してください。",
+          endpoint: "専用API（下部の公式リファレンス参照）",
+          headers: [AUTH_HEADER],
+          note: "音声デザイン／話者登録（ボイスクローン）用の専用モデルです。通常のTTSエンドポイント（multimodal-generation）では受け付けられません（2026-07-15 実測: url error）。利用手順は下部の「公式 API リファレンス」を参照してください。",
           params: [
             { name: "model", type: "string", required: true, desc: "モデル名。例: `" + m.model + "`" },
           ],
@@ -409,7 +409,9 @@ export function apiRefFor(m: ModelLike): ApiRef {
         params: [
           { name: "model", type: "string", required: true, desc: "モデル名。例: `" + m.model + "`" },
           { name: "input.text", type: "string", required: true, desc: "読み上げるテキスト（最大512トークン程度。課金はテキストのトークン数）" },
-          { name: "input.voice", type: "string", desc: "話者（音色）。例: `Cherry` / `Serena` / `Ethan` / `Chelsie`（対応話者はモデルによる）" },
+          { name: "input.voice", type: "string", desc: m.model.includes("-vc")
+              ? "登録済みボイスID（必須）。qwen-voice-enrollment で作成したクローン音声を指定"
+              : "話者（音色）。例: `Cherry` / `Serena` / `Ethan` / `Chelsie`（対応話者はモデルによる）" },
           { name: "parameters.language_type", type: "string", desc: "言語の指定（対応モデルのみ）。例: `Japanese`。省略時は自動判定" },
           { name: "parameters.stream", type: "boolean", desc: "SSEストリーミングで音声チャンクを逐次受信（対応モデルのみ）" },
         ],
