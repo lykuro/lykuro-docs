@@ -120,6 +120,18 @@ function chatParams(m: ModelLike): ApiParam[] {
   return params;
 }
 
+// 動画系モデルのサブタイプ。モデル名から判定する(t2v/i2v/kf2v/r2v/動画編集/animate)。
+export type VideoSubtype = "t2v" | "i2v" | "kf2v" | "r2v" | "edit" | "animate";
+
+export function videoSubtype(model: string): VideoSubtype {
+  if (model.includes("kf2v")) return "kf2v";
+  if (model.includes("i2v")) return "i2v";
+  if (model.includes("r2v")) return "r2v";
+  if (model.includes("video-edit") || model.includes("videoedit") || model.includes("vace")) return "edit";
+  if (model.includes("animate")) return "animate";
+  return "t2v";
+}
+
 export function apiRefFor(m: ModelLike): ApiRef {
   const openai = OPENAI_BASE[m.provider] ?? OPENAI_BASE.alibaba;
 
@@ -207,7 +219,46 @@ export function apiRefFor(m: ModelLike): ApiRef {
       };
 
     case "video": {
-      const isI2V = m.model.includes("i2v");
+      const sub = videoSubtype(m.model);
+      const noteBySub: Record<VideoSubtype, string> = {
+        t2v: "テキスト→動画: prompt の記述から動画を生成します。",
+        i2v: "画像→動画: `img_url` の画像を先頭フレームとして、prompt の指示どおりに動かした動画を生成します。",
+        kf2v: "先頭・末尾フレーム→動画: `first_frame_url` と `last_frame_url` の2枚の画像をつなぐ中間の動きを補間した動画を生成します。",
+        r2v: "参照→動画: `ref_images_url` の参照画像の人物・キャラクターの外観を維持したまま、prompt のシーン・動きで動画を生成します。",
+        edit: "動画編集: `video_url` の入力動画を prompt の指示（スタイル変換・要素の追加/削除・背景差し替え等）で編集した動画を生成します。出力の長さは入力動画に従います。",
+        animate: m.model.includes("mix")
+          ? "動画人物差し替え: `video_url` の動画内の人物を、`image_url` のキャラクター画像の外観に差し替えた動画を生成します。"
+          : "画像→アクション動画: `image_url` のキャラクター画像を、`video_url` の動作参照動画の動きで動かした動画を生成します。",
+      };
+      const inputBySub: Record<VideoSubtype, ApiParam[]> = {
+        t2v: [
+          { name: "input.prompt", type: "string", required: true, desc: "生成プロンプト。日本語可、最大800文字程度。被写体・動き・カメラワーク・スタイルを具体的に" },
+        ],
+        i2v: [
+          { name: "input.img_url", type: "string", required: true, desc: "先頭フレームにする入力画像。公開URL または `data:image/png;base64,...`。形式: JPEG/PNG/BMP/WEBP、10MB以下。アスペクト比は出力動画に引き継がれます" },
+          { name: "input.prompt", type: "string", desc: "動きの指示プロンプト。日本語可、最大800文字程度（省略時は画像内容から自動推定）。例: 「カメラをゆっくり右にパンしながら人物が振り返る」" },
+        ],
+        kf2v: [
+          { name: "input.first_frame_url", type: "string", required: true, desc: "先頭フレームにする画像URL。形式: JPEG/PNG/BMP/WEBP、10MB以下" },
+          { name: "input.last_frame_url", type: "string", required: true, desc: "末尾フレームにする画像URL。先頭フレームと同じアスペクト比を推奨" },
+          { name: "input.prompt", type: "string", desc: "2枚の間の動き・変化の指示（省略時は自動補間）" },
+        ],
+        r2v: [
+          { name: "input.ref_images_url", type: "array", required: true, desc: "参照画像URLの配列（1〜複数枚）。人物・キャラクターの外観がこの画像に一致するよう維持されます" },
+          { name: "input.prompt", type: "string", required: true, desc: "シーン・動きの指示プロンプト。参照画像の被写体をどう動かすかを記述" },
+        ],
+        edit: [
+          { name: "input.video_url", type: "string", required: true, desc: "編集対象の入力動画URL（MP4等）。出力の長さ・アスペクト比は入力に従います" },
+          { name: "input.prompt", type: "string", required: true, desc: "編集指示。例: 「背景を夜の街に差し替える」「アニメ調に変換する」" },
+          { name: "input.ref_images_url", type: "array", desc: "編集の参照画像URLの配列（差し替え先の素材等、対応モデルのみ）" },
+        ],
+        animate: [
+          { name: "input.image_url", type: "string", required: true, desc: "キャラクター画像URL（動かしたい/差し替えたい人物の外観）" },
+          { name: "input.video_url", type: "string", required: true, desc: "動作参照動画URL（この動画の動き・ポーズを適用）" },
+        ],
+      };
+      // 生成系(t2v/i2v/kf2v/r2v)は長さ・解像度を指定、編集系(edit/animate)は入力動画に従う。
+      const generative = sub === "t2v" || sub === "i2v" || sub === "kf2v" || sub === "r2v";
       return {
         endpoint: `POST ${DASHSCOPE_BASE}/services/aigc/video-generation/video-synthesis`,
         headers: [
@@ -215,23 +266,19 @@ export function apiRefFor(m: ModelLike): ApiRef {
           JSON_HEADER,
           { name: "X-DashScope-Async", type: "string", required: true, desc: "`enable`（非同期タスクとして実行）" },
         ],
-        note: isI2V
-          ? "DashScope ネイティブAPI（非同期）。画像→動画: `img_url` の画像を先頭フレームとして、prompt の指示どおりに動かした動画を生成します。生成には数十秒〜数分かかるため、結果はタスク照会APIで取得します（下の「非同期処理」参照）。"
-          : "DashScope ネイティブAPI（非同期）。`img_url` を与えると画像→動画（i2v）になります。生成には数十秒〜数分かかるため、結果はタスク照会APIで取得します（下の「非同期処理」参照）。",
+        note: `DashScope ネイティブAPI（非同期）。${noteBySub[sub]}生成には数十秒〜数分かかるため、結果はタスク照会APIで取得します（下の「非同期処理」参照）。`,
         params: [
           { name: "model", type: "string", required: true, desc: "モデル名。例: `" + m.model + "`" },
-          ...(isI2V
+          ...inputBySub[sub],
+          { name: "input.negative_prompt", type: "string", desc: "避けたい要素（例: `モザイク, 手ぶれ, 文字`）。最大500文字程度" },
+          ...(generative
             ? [
-                { name: "input.img_url", type: "string", required: true, desc: "先頭フレームにする入力画像。公開URL または `data:image/png;base64,...`。形式: JPEG/PNG/BMP/WEBP、10MB以下。アスペクト比は出力動画に引き継がれます" },
-                { name: "input.prompt", type: "string", desc: "動きの指示プロンプト。日本語可、最大800文字程度（省略時は画像内容から自動推定）。例: 「カメラをゆっくり右にパンしながら人物が振り返る」" },
+                { name: "parameters.resolution", type: "string", desc: "解像度: `480P` / `720P` / `1080P`（対応値はモデルによる）。秒単価が解像度で変わるモデルがあります（単価はモデル一覧参照）" },
+                { name: "parameters.duration", type: "integer", desc: "動画の長さ（秒）。通常 5 または 10（デフォルト 5）。課金は「出力秒数 × 単価」" },
               ]
             : [
-                { name: "input.prompt", type: "string", required: true, desc: "生成プロンプト（t2v）。日本語可、最大800文字程度。被写体・動き・カメラワーク・スタイルを具体的に" },
-                { name: "input.img_url", type: "string", desc: "入力画像URL（i2v モデルで先頭フレームに使用）" },
+                { name: "parameters.resolution", type: "string", desc: "出力解像度（対応モデルのみ。省略時は入力動画に従う）。課金は「出力秒数 × 単価」" },
               ]),
-          { name: "input.negative_prompt", type: "string", desc: "避けたい要素（例: `モザイク, 手ぶれ, 文字`）。最大500文字程度" },
-          { name: "parameters.resolution", type: "string", desc: "解像度: `480P` / `720P` / `1080P`（対応値はモデルによる）。秒単価が解像度で変わります（$0.14〜$0.24/秒）" },
-          { name: "parameters.duration", type: "integer", desc: "動画の長さ（秒）。通常 5 または 10（デフォルト 5）。課金は「秒数 × 解像度別単価」" },
           { name: "parameters.prompt_extend", type: "boolean", desc: "プロンプトの自動拡張（LLMによる詳細化）。デフォルト true。指示に忠実に従わせたい場合は false" },
           { name: "parameters.seed", type: "integer", desc: "乱数シード（0〜2147483647）。同一入力+同一シードで再現性を確保" },
           { name: "parameters.watermark", type: "boolean", desc: "生成動画への「AI生成」透かし付与。デフォルト false" },

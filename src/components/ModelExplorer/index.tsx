@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import CodeBlock from "@theme/CodeBlock";
 import styles from "./styles.module.css";
 import data from "@site/src/data/models.generated.json";
-import { apiRefFor } from "./params";
+import { apiRefFor, videoSubtype } from "./params";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 export type Model = {
@@ -310,9 +310,18 @@ function dashscopeExamples(m: Model): Tab[] {
     rerank: `"input": {"query": "東京の天気", "documents": ["今日は晴れ", "明日は雨"]}`,
   };
   let body = input[m.kind];
-  if (m.kind === "video" && m.model.includes("i2v")) {
-    // 画像→動画(i2v): 先頭フレーム画像 img_url が必須。prompt は動きの指示。
-    body = `"input": {\n      "img_url": "https://example.com/first-frame.png",\n      "prompt": "画像の犬が波打ち際を走り出す、シネマティック"\n    },\n    "parameters": {"resolution": "720P", "duration": 5}`;
+  if (m.kind === "video") {
+    // サブタイプ(t2v/i2v/kf2v/r2v/動画編集/animate)ごとに必須入力が異なる。
+    // パラメータ表(params.ts の videoSubtype 分岐)と同じ判定を使う。
+    const videoBody: Record<string, string> = {
+      t2v: `"input": {"prompt": "波打ち際を走る犬、シネマティック"},\n    "parameters": {"resolution": "720P", "duration": 5}`,
+      i2v: `"input": {\n      "img_url": "https://example.com/first-frame.png",\n      "prompt": "画像の犬が波打ち際を走り出す、シネマティック"\n    },\n    "parameters": {"resolution": "720P", "duration": 5}`,
+      kf2v: `"input": {\n      "first_frame_url": "https://example.com/first-frame.png",\n      "last_frame_url": "https://example.com/last-frame.png",\n      "prompt": "つぼみがゆっくり開花する、タイムラプス"\n    },\n    "parameters": {"resolution": "720P", "duration": 5}`,
+      r2v: `"input": {\n      "ref_images_url": ["https://example.com/character.png"],\n      "prompt": "参照キャラクターが雨の街を歩く、ローアングル"\n    },\n    "parameters": {"resolution": "720P", "duration": 5}`,
+      edit: `"input": {\n      "video_url": "https://example.com/source.mp4",\n      "prompt": "背景を夜の街に差し替え、全体をアニメ調に変換する"\n    },\n    "parameters": {"watermark": false}`,
+      animate: `"input": {\n      "image_url": "https://example.com/character.png",\n      "video_url": "https://example.com/dance-motion.mp4"\n    },\n    "parameters": {"watermark": false}`,
+    };
+    body = videoBody[videoSubtype(m.model)];
   }
   const ep = `${DASHSCOPE_BASE}${path[m.kind]}`;
   const async = m.kind === "image" || m.kind === "video" || m.kind === "asr";
@@ -353,7 +362,12 @@ ${async ? "# 1. タスク作成\n" : ""}curl ${ep} \\
       video: `task["output"]["video_url"]`,
       asr: `task["output"]["results"][0]["transcription_url"]`,
     };
-    const pyBody = `{\n        "model": "${m.model}",\n        ${body.replace(/\n {4}/g, "\n        ")},\n    }`;
+    // JSON リテラル(true/false/null)を Python リテラルへ変換して埋め込む。
+    const pyJson = body
+      .replace(/\btrue\b/g, "True")
+      .replace(/\bfalse\b/g, "False")
+      .replace(/\bnull\b/g, "None");
+    const pyBody = `{\n        "model": "${m.model}",\n        ${pyJson.replace(/\n {4}/g, "\n        ")},\n    }`;
     tabs.push({
       label: "Python",
       lang: "python",
