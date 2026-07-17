@@ -25,7 +25,7 @@ Anthropic 系クライアントは API キーを `x-api-key` ヘッダーで送�
 import anthropic
 
 client = anthropic.Anthropic(
-    api_key="sk-jp-YOUR_KEY",
+    api_key="lk_live_YOUR_KEY",
     base_url="https://api.lykuro.ai/alibaba/apps/anthropic",
 )
 
@@ -67,5 +67,5 @@ model.base_url = https://api.lykuro.ai/alibaba/apps/anthropic
 model.base_url = https://api.lykuro.ai/deepseek/anthropic
 ```
 
-API キーは各ツールの設定（`x-api-key` 相当）に `sk-jp-...` を指定します。
+API キーは各ツールの設定（`x-api-key` 相当）に `lk_live_...` を指定します。
 `model` には上流ネイティブ名（`qwen3-max`, `deepseek-chat` 等）を指定してください。

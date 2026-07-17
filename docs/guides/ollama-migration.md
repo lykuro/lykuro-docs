@@ -19,7 +19,7 @@ client = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
 from openai import OpenAI
 client = OpenAI(
     base_url="https://api.lykuro.ai/deepseek/v1",
-    api_key="sk-jp-YOUR_KEY",
+    api_key="lk_live_YOUR_KEY",
 )
 response = client.chat.completions.create(
     model="deepseek-chat",

@@ -11,13 +11,13 @@ info:
     リクエスト/レスポンスのスキーマは上流(OpenAI/Anthropic 互換)に準拠します。
 
     ## 認証
-    `Authorization: Bearer sk-jp-xxx`(OpenAI系) または `x-api-key: sk-jp-xxx`(Anthropic系)。
+    `Authorization: Bearer lk_live_xxx`(OpenAI系) または `x-api-key: lk_live_xxx`(Anthropic系)。
 
     ## OpenAI SDK互換
     ```python
     import openai
     client = openai.OpenAI(
-        api_key="sk-jp-...",
+        api_key="lk_live_...",
         base_url="https://api.lykuro.ai/deepseek/v1"   # /{provider}/...
     )
     ```
@@ -26,7 +26,7 @@ info:
     ```python
     import anthropic
     client = anthropic.Anthropic(
-        api_key="sk-jp-...",
+        api_key="lk_live_...",
         base_url="https://api.lykuro.ai/deepseek/anthropic"
     )
     ```
@@ -318,6 +318,9 @@ paths:
     get:
       tags: [account]
       summary: APIキー一覧取得
+      description: |
+        アクティブな個人キーのみ返す(企業版Virtual Keyの裏付けキーは含まない)。
+        active_count はTier上限の判定対象となる全スコープのキー数。
       operationId: listApiKeys
       responses:
         '200':
@@ -331,6 +334,9 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/ApiKey'
+                  active_count:
+                    type: integer
+                    description: 全スコープのアクティブキー数(Tier上限の判定対象)
 
     post:
       tags: [account]
@@ -383,7 +389,7 @@ paths:
                     properties:
                       key:
                         type: string
-                        description: sk-jp-で始まる平文キー(以降表示されない)
+                        description: lk_ で始まる平文キー(以降表示されない)
         '403':
           description: APIキー数の上限到達
 
@@ -410,6 +416,79 @@ paths:
                   revoked_at:
                     type: string
                     format: date-time
+        '400':
+          description: tenant-scopedキー(企業版Virtual Keyの裏付けキーは企業版エンドポイントで管理する)
+        '404':
+          description: キーが存在しない(他アカウントのキーを含む)
+
+  /api/keys/{id}/rotate:
+    post:
+      tags: [account]
+      summary: APIキーのローテーション
+      description: |
+        設定(名前・許可モデル・IP制限・予算・上限・有効期限)を引き継いだ
+        新しいキーを発行し、旧キーを失効させる。
+        grace_period_seconds を指定すると旧キーは即時失効ではなく
+        指定秒数後に期限切れとなる(移行期間中は新旧両方が有効)。
+      operationId: rotateApiKey
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                grace_period_seconds:
+                  type: integer
+                  minimum: 0
+                  maximum: 259200
+                  default: 0
+                  description: 旧キーの猶予期間(秒、最大72時間)。0で即時失効
+      responses:
+        '200':
+          description: ローテーション成功(新キーの平文は初回のみ返却)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  key:
+                    type: string
+                    description: lk_ で始まる新キーの平文(以降表示されない)
+                  key_display:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  old_key_id:
+                    type: string
+                    format: uuid
+                  old_key_revoked_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: 即時失効時のみ
+                  old_key_expires_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: 猶予期間指定時のみ(旧キーの失効予定時刻)
+        '400':
+          description: 失効済みキー、不正な猶予期間、またはtenant-scopedキー(企業版Virtual Keyの裏付けキーは企業版エンドポイントでローテーションする)
+        '404':
+          description: キーが存在しない(他アカウントのキーを含む)
 
   # ============================================================
   # 課金・残高
@@ -656,6 +735,132 @@ paths:
   # ============================================================
   # ヘルスチェック
   # ============================================================
+  /api/model-selection/stances:
+    get:
+      tags: [model-selection]
+      summary: スタンス一覧取得(自動モデル選択 v3.1 §12.1)
+      operationId: listStances
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          description: スタンス一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stances:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        stance_key: { type: string }
+                        name: { type: string }
+                        description: { type: string }
+                        baseline_model_id: { type: string }
+                        quality_only: { type: boolean }
+                        note: { type: string }
+
+  /api/model-selection/recommendations:
+    get:
+      tags: [model-selection]
+      summary: スタンス別推薦取得(自動モデル選択 v3.1 §12.2)
+      operationId: getStanceRecommendations
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: stance_key
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 最新ベンチマークの推薦(r_ci は常に [low, high]、benchmark_version は監査用に必須)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stance_key: { type: string }
+                  benchmark_version: { type: string }
+                  recommended:
+                    $ref: "#/components/schemas/RecommendationOption"
+                  options:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RecommendationOption"
+                  benchmark_only:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        model_id: { type: string }
+                        r_value: { type: number }
+                        r_ci:
+                          type: array
+                          items: { type: number }
+                        cost_index: { type: number }
+                        selectable: { type: boolean }
+        "404":
+          description: 未知の stance_key、またはベンチマーク未実行
+
+  /api/tenants/{tenantId}/stances/{stanceKey}/preview:
+    get:
+      tags: [model-selection]
+      summary: スタンス自動選択プレビュー(実行時と同一プール・同一順位)
+      operationId: previewStance
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: stanceKey
+          in: path
+          required: true
+          schema: { type: string }
+        - name: recommendation_type
+          in: query
+          schema:
+            type: string
+            enum: [quality_first, balanced, cost_first]
+        - name: virtual_key_id
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: 選択とフォールバック鎖(ranking_applied=false はベンチマーク未整備で静的優先度評価)
+        "404":
+          description: 未知のスタンス
+
+  /api/admin/model-evaluation/run:
+    post:
+      tags: [admin]
+      summary: スタンスベンチマーク実行のキュー投入(v3.1 §12.3、adminロール必須)
+      operationId: runModelEvaluation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stance_key]
+              properties:
+                stance_key: { type: string }
+                golden_set_id: { type: string, description: "省略時はスタンスのアクティブGolden Set" }
+                benchmark_version: { type: string, description: "省略時は bench_YYYY_MM_DD_HHMMSS" }
+                target_models:
+                  type: array
+                  items: { type: string }
+      responses:
+        "202":
+          description: queued(実行は cmd/modeleval run -queue が消化)
+        "409":
+          description: 同一 benchmark_version が既に存在
+
   /health:
     get:
       tags: [models]
@@ -694,9 +899,34 @@ components:
       bearerFormat: API Key
       description: |
         APIキーを Bearer 形式で送信:
-        `Authorization: Bearer sk-jp-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+        `Authorization: Bearer lk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: session_token
+      description: ダッシュボードのセッションCookie(HttpOnly)。内部API(/api/*)用
 
   schemas:
+    RecommendationOption:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [quality_first, balanced, cost_first]
+        model_id: { type: string }
+        r_value: { type: number, description: "相対品質(基準=100)。線形解釈は不可(§3.3)" }
+        r_ci:
+          type: array
+          items: { type: number }
+          description: "95%信頼区間 [low, high]。baseline は縮退値 [100,100]"
+        win_rate: { type: number }
+        cost_index: { type: number }
+        is_baseline: { type: boolean }
+        is_provisional: { type: boolean }
+        judge_coverage:
+          type: string
+          enum: [panel, single, baseline]
+        reason: { type: string }
     # ============================================================
     # OpenAI互換スキーマ
     # ============================================================
@@ -1105,7 +1335,7 @@ components:
           type: string
         key_display:
           type: string
-          example: "sk-jp-AbC1...wXyZ"
+          example: "lk_live_abC1 •••• wXyZ"
         allowed_models:
           type: array
           items:

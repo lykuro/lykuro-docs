@@ -1,5 +1,5 @@
 // 最小のチャット補完サンプル。
-// 実行: LYKURO_API_KEY=sk-jp-... go run .
+// 実行: LYKURO_API_KEY=lk_live_... go run .
 package main
 
 import (

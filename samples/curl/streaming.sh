@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ストリーミング（SSE）。実行: LYKURO_API_KEY=sk-jp-... ./streaming.sh
+# ストリーミング（SSE）。実行: LYKURO_API_KEY=lk_live_... ./streaming.sh
 set -euo pipefail
 : "${LYKURO_API_KEY:?LYKURO_API_KEY が未設定です}"
 BASE_URL="${LYKURO_BASE_URL:-https://api.lykuro.ai/deepseek/v1}"

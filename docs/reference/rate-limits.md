@@ -26,7 +26,7 @@ sidebar_position: 3
 
 ```bash
 curl https://api.lykuro.ai/api/billing/balance \
-  -H "Authorization: Bearer sk-jp-YOUR_KEY"
+  -H "Authorization: Bearer lk_live_YOUR_KEY"
 ```
 
 ```json

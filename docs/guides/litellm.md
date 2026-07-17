@@ -23,7 +23,7 @@ import litellm
 response = litellm.completion(
     model="openai/deepseek-chat",
     messages=[{"role": "user", "content": "こんにちは！"}],
-    api_key="sk-jp-YOUR_KEY",
+    api_key="lk_live_YOUR_KEY",
     api_base="https://api.lykuro.ai/deepseek/v1",
 )
 print(response.choices[0].message.content)
@@ -32,7 +32,7 @@ print(response.choices[0].message.content)
 ## 環境変数で設定
 
 ```bash
-export OPENAI_API_KEY="sk-jp-YOUR_KEY"
+export OPENAI_API_KEY="lk_live_YOUR_KEY"
 export OPENAI_API_BASE="https://api.lykuro.ai/alibaba/compatible-mode/v1"
 ```
 
@@ -54,12 +54,12 @@ model_list:
     litellm_params:
       model: openai/qwen-turbo
       api_base: https://api.lykuro.ai/alibaba/compatible-mode/v1
-      api_key: sk-jp-YOUR_KEY
+      api_key: lk_live_YOUR_KEY
   - model_name: deepseek-chat
     litellm_params:
       model: openai/deepseek-chat
       api_base: https://api.lykuro.ai/deepseek/v1
-      api_key: sk-jp-YOUR_KEY
+      api_key: lk_live_YOUR_KEY
 ```
 
 ```bash

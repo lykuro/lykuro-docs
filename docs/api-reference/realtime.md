@@ -14,7 +14,7 @@ Alibaba DashScope の Realtime API を透過プロキシします。
 
 ```
 wss://api.lykuro.ai/alibaba/api-ws/v1/realtime?model={model}
-Authorization: Bearer sk-jp-YOUR_KEY
+Authorization: Bearer lk_live_YOUR_KEY
 ```
 
 `model` には**上流ネイティブのモデル名**を指定します（プロバイダ `alibaba` は base_url 側で指定済み）。
@@ -42,7 +42,7 @@ Authorization: Bearer sk-jp-YOUR_KEY
 ```
 1. WSS 接続確立
    wss://api.lykuro.ai/alibaba/api-ws/v1/realtime?model=qwen3.5-omni-plus-realtime
-   Authorization: Bearer sk-jp-YOUR_KEY
+   Authorization: Bearer lk_live_YOUR_KEY
 
 2. session.update イベント送信（セッション設定）
 
@@ -116,7 +116,7 @@ import websockets
 
 async def realtime_chat():
     url = "wss://api.lykuro.ai/alibaba/api-ws/v1/realtime?model=qwen3.5-omni-plus-realtime"
-    headers = {"Authorization": "Bearer sk-jp-YOUR_KEY"}
+    headers = {"Authorization": "Bearer lk_live_YOUR_KEY"}
 
     async with websockets.connect(url, extra_headers=headers) as ws:
         # 1. セッション設定
@@ -164,7 +164,7 @@ import fs from "fs";
 
 const ws = new WebSocket(
   "wss://api.lykuro.ai/alibaba/api-ws/v1/realtime?model=qwen3.5-omni-plus-realtime",
-  { headers: { Authorization: "Bearer sk-jp-YOUR_KEY" } }
+  { headers: { Authorization: "Bearer lk_live_YOUR_KEY" } }
 );
 
 ws.on("open", () => {
@@ -205,7 +205,7 @@ ws.on("close", () => console.log("接続終了"));
 ```python
 async def live_translate():
     url = "wss://api.lykuro.ai/alibaba/api-ws/v1/realtime?model=qwen3-livetranslate-flash-realtime"
-    headers = {"Authorization": "Bearer sk-jp-YOUR_KEY"}
+    headers = {"Authorization": "Bearer lk_live_YOUR_KEY"}
 
     async with websockets.connect(url, extra_headers=headers) as ws:
         await ws.send(json.dumps({
@@ -232,7 +232,7 @@ asyncio.run(live_translate())
 ```bash
 npm install -g wscat
 wscat -c "wss://api.lykuro.ai/alibaba/api-ws/v1/realtime?model=qwen3.5-omni-plus-realtime" \
-  -H "Authorization: Bearer sk-jp-YOUR_KEY"
+  -H "Authorization: Bearer lk_live_YOUR_KEY"
 ```
 
 接続後にセッション設定を送信：

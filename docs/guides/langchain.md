@@ -15,7 +15,7 @@ from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
     model="deepseek-chat",
-    openai_api_key="sk-jp-YOUR_KEY",
+    openai_api_key="lk_live_YOUR_KEY",
     openai_api_base="https://api.lykuro.ai/deepseek/v1",
 )
 
@@ -32,7 +32,7 @@ from langchain.chains import RetrievalQA
 
 # Embeddings も Lykuro AI を使用（上流が embeddings 対応の場合）
 embeddings = OpenAIEmbeddings(
-    openai_api_key="sk-jp-YOUR_KEY",
+    openai_api_key="lk_live_YOUR_KEY",
     openai_api_base="https://api.lykuro.ai/alibaba/compatible-mode/v1",
 )
 
@@ -40,7 +40,7 @@ vectorstore = FAISS.from_texts(["ドキュメント1", "ドキュメント2"], e
 
 llm = ChatOpenAI(
     model="qwen-turbo",
-    openai_api_key="sk-jp-YOUR_KEY",
+    openai_api_key="lk_live_YOUR_KEY",
     openai_api_base="https://api.lykuro.ai/alibaba/compatible-mode/v1",
 )
 

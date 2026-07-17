@@ -2,7 +2,7 @@
 
 ```bash
 chmod +x *.sh
-export LYKURO_API_KEY=sk-jp-YOUR_KEY
+export LYKURO_API_KEY=lk_live_YOUR_KEY
 
 ./chat.sh        # 基本のチャット補完
 ./streaming.sh   # ストリーミング（SSE）

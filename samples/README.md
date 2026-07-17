@@ -12,7 +12,7 @@
 
 ## 共通の準備
 
-1. [ダッシュボード](https://app.lykuro.ai)で APIキー（`sk-jp-...`）を発行
+1. [ダッシュボード](https://app.lykuro.ai)で APIキー（`lk_live_...`）を発行
 2. 各ディレクトリの `.env.example` を `.env` にコピーして `LYKURO_API_KEY` を記入
 
 詳しい解説は [ドキュメントのサンプル集](https://docs.lykuro.ai/docs/cookbook) を参照してください。

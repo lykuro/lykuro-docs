@@ -10,7 +10,7 @@ description: Lykuro AI を使った実践的なコードサンプル集（Python
 すべて Lykuro AI の**透過プロキシ**経由で、`base_url` を差し替えるだけで動作します。
 
 :::tip 前提
-- APIキー（`sk-jp-...`）は [ダッシュボード](https://app.lykuro.ai) で発行してください。
+- APIキー（`lk_live_...`）は [ダッシュボード](https://app.lykuro.ai) で発行してください。
 - サンプルではキーを環境変数 `LYKURO_API_KEY` から読み込みます。
 - `base_url` は用途で選びます（[API概要](../api-reference/overview) 参照）:
   - OpenAI互換（DeepSeek）: `https://api.lykuro.ai/deepseek/v1`

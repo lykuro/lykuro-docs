@@ -2,13 +2,13 @@
 
 ```bash
 go mod tidy
-LYKURO_API_KEY=sk-jp-YOUR_KEY go run .
+LYKURO_API_KEY=lk_live_YOUR_KEY go run .
 ```
 
 `LYKURO_BASE_URL` で上流を切り替えられます（既定: DeepSeek）。
 
 ```bash
-LYKURO_API_KEY=sk-jp-YOUR_KEY \
+LYKURO_API_KEY=lk_live_YOUR_KEY \
 LYKURO_BASE_URL=https://api.lykuro.ai/alibaba/compatible-mode/v1 \
 go run .
 ```

@@ -14,7 +14,7 @@ Lykuro AI は OpenAI / Anthropic **互換**の API を**透過プロキシ**で�
 
 1. [ダッシュボード](https://app.lykuro.ai) にサインアップ
 2. 電話番号認証を完了すると無料クレジットが付与されます
-3. **APIキー** ページから `sk-jp-...` 形式のキーを発行
+3. **APIキー** ページから `lk_live_...` 形式のキーを発行
 
 ## 2. base_url の決め方
 
@@ -43,7 +43,7 @@ base_url は **`https://api.lykuro.ai/{プロバイダ}/{上流パス}`** の形
 from openai import OpenAI
 
 client = OpenAI(
-    api_key="sk-jp-YOUR_KEY",
+    api_key="lk_live_YOUR_KEY",
     base_url="https://api.lykuro.ai/deepseek/v1",
 )
 
@@ -60,7 +60,7 @@ print(response.choices[0].message.content)
 import OpenAI from "openai";
 
 const client = new OpenAI({
-  apiKey: "sk-jp-YOUR_KEY",
+  apiKey: "lk_live_YOUR_KEY",
   baseURL: "https://api.lykuro.ai/alibaba/compatible-mode/v1",
 });
 
@@ -75,7 +75,7 @@ console.log(response.choices[0].message.content);
 
 ```bash
 curl https://api.lykuro.ai/deepseek/v1/chat/completions \
-  -H "Authorization: Bearer sk-jp-YOUR_KEY" \
+  -H "Authorization: Bearer lk_live_YOUR_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "deepseek-chat",
@@ -87,7 +87,7 @@ curl https://api.lykuro.ai/deepseek/v1/chat/completions \
 
 ```bash
 curl https://api.lykuro.ai/v1/models \
-  -H "Authorization: Bearer sk-jp-YOUR_KEY"
+  -H "Authorization: Bearer lk_live_YOUR_KEY"
 ```
 
 詳細は [モデル一覧](./reference/models) を参照してください。

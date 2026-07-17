@@ -20,7 +20,7 @@ OpenAI SDK は `base_url` を変えるだけで Lykuro AI に接続できます�
 from openai import OpenAI
 
 client = OpenAI(
-    api_key="sk-jp-YOUR_KEY",
+    api_key="lk_live_YOUR_KEY",
     base_url="https://api.lykuro.ai/alibaba/compatible-mode/v1",
 )
 
@@ -85,7 +85,7 @@ console.log(response.choices[0]);
 
 ```bash
 # .env
-LYKURO_API_KEY=sk-jp-YOUR_KEY
+LYKURO_API_KEY=lk_live_YOUR_KEY
 OPENAI_BASE_URL=https://api.lykuro.ai/alibaba/compatible-mode/v1
 ```
 

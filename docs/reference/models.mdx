@@ -17,7 +17,7 @@ import ApiRef from "@site/src/components/ApiRef";
 
 ```bash
 curl https://api.lykuro.ai/v1/models \
-  -H "Authorization: Bearer sk-jp-YOUR_KEY"
+  -H "Authorization: Bearer lk_live_YOUR_KEY"
 ```
 
 ## モデルを探す
@@ -43,7 +43,7 @@ curl https://api.lykuro.ai/v1/models \
 
 ```bash
 curl https://api.lykuro.ai/deepseek/v1/chat/completions \
-  -H "Authorization: Bearer sk-jp-YOUR_KEY" \
+  -H "Authorization: Bearer lk_live_YOUR_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "deepseek-chat",
@@ -54,7 +54,7 @@ curl https://api.lykuro.ai/deepseek/v1/chat/completions \
 ```python
 from openai import OpenAI
 
-client = OpenAI(api_key="sk-jp-YOUR_KEY", base_url="https://api.lykuro.ai/deepseek/v1")
+client = OpenAI(api_key="lk_live_YOUR_KEY", base_url="https://api.lykuro.ai/deepseek/v1")
 
 response = client.chat.completions.create(
     model="deepseek-chat",

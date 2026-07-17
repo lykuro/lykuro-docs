@@ -47,11 +47,12 @@ https://api.lykuro.ai/{プロバイダ}/{上流パス...}
 API キーを次のいずれかのヘッダーで指定します。
 
 ```
-Authorization: Bearer sk-jp-YOUR_KEY     # OpenAI 系クライアント
-x-api-key: sk-jp-YOUR_KEY                # Anthropic 系クライアント（Claude Code 等）
+Authorization: Bearer lk_live_YOUR_KEY     # OpenAI 系クライアント
+x-api-key: lk_live_YOUR_KEY                # Anthropic 系クライアント（Claude Code 等）
 ```
 
 API キーは [ダッシュボード](https://app.lykuro.ai) の「APIキー」メニューから発行できます。
+キーの差し替えは**ローテーション**が便利です — 設定を引き継いだ新キーを発行し、旧キーを無効化します。猶予期間（最大72時間）を指定すると移行期間中は新旧両方のキーが有効です。
 
 ## モデルの指定
 
