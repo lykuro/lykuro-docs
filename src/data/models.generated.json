@@ -7,7 +7,7 @@
     "anthropic_models.generated.yaml",
     "google_models.generated.yaml"
   ],
-  "count": 230,
+  "count": 229,
   "models": [
     {
       "id": "deepseek/deepseek-v4-flash",
@@ -2907,24 +2907,6 @@
         "cache"
       ],
       "price": "入力 $0.95 / 出力 $4 (1M・キャッシュミス)",
-      "docUrl": "https://platform.kimi.ai/docs/"
-    },
-    {
-      "id": "kimi/kimi-k2.5",
-      "provider": "kimi",
-      "model": "kimi-k2.5",
-      "category": "テキスト生成",
-      "group": "Kimi",
-      "kind": "text",
-      "features": [
-        "stream",
-        "tools",
-        "json",
-        "vision",
-        "thinking",
-        "cache"
-      ],
-      "price": "入力 $0.6 / 出力 $3 (1M・キャッシュミス)",
       "docUrl": "https://platform.kimi.ai/docs/"
     },
     {

@@ -36,7 +36,7 @@ base_url は **`https://api.lykuro.ai/{プロバイダ}/{上流パス}`** の形
 | リアルタイム音声（WSS） | `wss://api.lykuro.ai/alibaba/api-ws/v1/realtime` |
 
 :::tip モデル名
-`model` には**上流ネイティブのモデル名**を指定します（例: `deepseek-chat`, `qwen-turbo`, `kimi-k2.5`, `gpt-5.5`, `claude-sonnet-5`, `gemini-2.5-flash`）。
+`model` には**上流ネイティブのモデル名**を指定します（例: `deepseek-chat`, `qwen-turbo`, `kimi-k2.6`, `gpt-5.5`, `claude-sonnet-5`, `gemini-2.5-flash`）。
 プロバイダは base_url で指定済みなので、`alibaba/` のような接頭辞は付けません。
 利用可能なモデルは [モデル一覧](./reference/models) を参照してください。
 :::
