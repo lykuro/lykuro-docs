@@ -7,7 +7,7 @@
     "anthropic_models.generated.yaml",
     "google_models.generated.yaml"
   ],
-  "count": 229,
+  "count": 227,
   "models": [
     {
       "id": "deepseek/deepseek-v4-flash",
@@ -3369,39 +3369,6 @@
         "vision"
       ],
       "price": "入力 $2 / 出力 $12 (1M・入力200Kまで、200K超は $4/$18)",
-      "docUrl": "https://ai.google.dev/gemini-api/docs/models"
-    },
-    {
-      "id": "google/gemini-2.5-pro",
-      "provider": "google",
-      "model": "gemini-2.5-pro",
-      "category": "テキスト生成",
-      "group": "Google",
-      "kind": "text",
-      "features": [
-        "stream",
-        "tools",
-        "json",
-        "vision"
-      ],
-      "price": "入力 $1.25 / 出力 $10 (1M・入力200Kまで、200K超は $2.5/$15)",
-      "docUrl": "https://ai.google.dev/gemini-api/docs/models"
-    },
-    {
-      "id": "google/gemini-2.5-flash",
-      "provider": "google",
-      "model": "gemini-2.5-flash",
-      "category": "テキスト生成",
-      "group": "Google",
-      "kind": "text",
-      "features": [
-        "stream",
-        "tools",
-        "json",
-        "vision",
-        "cache"
-      ],
-      "price": "入力 $0.3 / 出力 $2.5 (1M・キャッシュミス)",
       "docUrl": "https://ai.google.dev/gemini-api/docs/models"
     }
   ]

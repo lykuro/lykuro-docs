@@ -35,7 +35,7 @@ Alibaba (Qwen) 系は **International（シンガポール）デプロイ**の�
 | OpenAI | `gpt-5.4-mini` | $0.75 | $4.50 | キャッシュヒット入力 $0.075 |
 | Anthropic | `claude-sonnet-5` | $2.00 | $10.00 | キャッシュヒット入力 $0.20 |
 | Anthropic | `claude-fable-5` | $10.00 | $50.00 | キャッシュヒット入力 $1.00 |
-| Google | `gemini-2.5-flash` | $0.30 | $2.50 | キャッシュヒット入力 $0.03 |
+| Google | `gemini-3.5-flash-lite` | $0.30 | $2.50 | キャッシュヒット入力 $0.03 |
 | Google | `gemini-3.6-flash` | $1.50 | $7.50 | キャッシュヒット入力 $0.15 |
 
 ※ 入力単価は非キャッシュ（cache miss）時の標準レートです。
