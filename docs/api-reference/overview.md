@@ -8,7 +8,7 @@ hide_table_of_contents: true
 # API 概要
 
 Lykuro AI Gateway は **OpenAI / Anthropic 互換 API** を**透過リバースプロキシ**として提供します。
-リクエストのパス・クエリ・本文は**改変されず**そのまま上流（DeepSeek / Alibaba）へ転送され、
+リクエストのパス・クエリ・本文は**改変されず**そのまま上流（DeepSeek / Alibaba / Kimi / OpenAI / Anthropic / Google）へ転送され、
 Lykuro は認証ヘッダーを自社キーから上流キーへ差し替えるだけです（フォーマット変換は行いません）。
 
 ## base_url のしくみ
@@ -17,7 +17,7 @@ Lykuro は認証ヘッダーを自社キーから上流キーへ差し替える�
 https://api.lykuro.ai/{プロバイダ}/{上流パス...}
 ```
 
-- 先頭の `/{プロバイダ}` で上流を選択（`deepseek` / `alibaba`）
+- 先頭の `/{プロバイダ}` で上流を選択（`deepseek` / `alibaba` / `kimi` / `openai` / `anthropic` / `google`）
 - 残りのパス・クエリ・本文はそのまま上流に届く
 - お使いのツールの base_url を、この形に差し替えるだけで動作
 
@@ -29,8 +29,16 @@ https://api.lykuro.ai/{プロバイダ}/{上流パス...}
 | テキスト生成（OpenAI互換・Alibaba） | HTTPS | `https://api.lykuro.ai/alibaba/compatible-mode/v1` |
 | テキスト生成（Anthropic互換・DeepSeek） | HTTPS | `https://api.lykuro.ai/deepseek/anthropic` |
 | テキスト生成（Anthropic互換・Alibaba） | HTTPS | `https://api.lykuro.ai/alibaba/apps/anthropic` |
+| テキスト生成（OpenAI互換・Kimi） | HTTPS | `https://api.lykuro.ai/kimi/v1` |
+| テキスト生成（Anthropic互換・Kimi） | HTTPS | `https://api.lykuro.ai/kimi/anthropic` |
+| テキスト生成（OpenAI・公式） | HTTPS | `https://api.lykuro.ai/openai/v1` |
+| テキスト生成（Anthropic・公式） | HTTPS | `https://api.lykuro.ai/anthropic` |
+| テキスト生成（Anthropic・OpenAI互換レイヤー） | HTTPS | `https://api.lykuro.ai/anthropic/v1` |
+| テキスト生成（Google Gemini・OpenAI互換） | HTTPS | `https://api.lykuro.ai/google/v1beta/openai` |
 | リアルタイム音声（Alibaba） | WSS | `wss://api.lykuro.ai/alibaba/api-ws/v1/realtime` |
 | モデル一覧（公開） | HTTPS | `https://api.lykuro.ai/v1/models` |
+
+Google はネイティブ Gemini API（`x-goog-api-key` 形式）には対応していません。OpenAI互換エンドポイントのみ利用できます。
 
 ## 開発ツール別の base_url
 
@@ -40,7 +48,7 @@ https://api.lykuro.ai/{プロバイダ}/{上流パス...}
 |---|---|
 | Cursor / OpenAI SDK | `https://api.lykuro.ai/alibaba/compatible-mode/v1` または `https://api.lykuro.ai/deepseek/v1` |
 | Codex | `https://api.lykuro.ai/alibaba/compatible-mode/v1` |
-| Claude Code / OpenClaw / Hermes Agent | `https://api.lykuro.ai/alibaba/apps/anthropic` または `https://api.lykuro.ai/deepseek/anthropic` |
+| Claude Code / OpenClaw / Hermes Agent | `https://api.lykuro.ai/anthropic`（Claude 公式）、`https://api.lykuro.ai/kimi/anthropic`、`https://api.lykuro.ai/alibaba/apps/anthropic`、`https://api.lykuro.ai/deepseek/anthropic` |
 
 ## 認証
 

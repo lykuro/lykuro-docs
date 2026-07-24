@@ -48,6 +48,12 @@ const FEATURE_ORDER = Object.keys(FEATURE_LABELS);
 const OPENAI_BASE: Record<string, string> = {
   deepseek: "https://api.lykuro.ai/deepseek/v1",
   alibaba: "https://api.lykuro.ai/alibaba/compatible-mode/v1",
+  kimi: "https://api.lykuro.ai/kimi/v1",
+  openai: "https://api.lykuro.ai/openai/v1",
+  // Anthropic は OpenAI 互換レイヤー経由（ネイティブは /anthropic + Anthropic SDK）
+  anthropic: "https://api.lykuro.ai/anthropic/v1",
+  // Google は OpenAI 互換エンドポイントのみ対応
+  google: "https://api.lykuro.ai/google/v1beta/openai",
 };
 const WS_BASE = "wss://api.lykuro.ai/alibaba/api-ws/v1/realtime";
 const DASHSCOPE_BASE = "https://api.lykuro.ai/alibaba/api/v1";

@@ -13,6 +13,10 @@ OpenAI SDK は `base_url` を変えるだけで Lykuro AI に接続できます�
 |---|---|---|
 | Alibaba/Qwen | `https://api.lykuro.ai/alibaba/compatible-mode/v1` | `qwen-turbo`, `qwen-max`, `qwen3-max` |
 | DeepSeek | `https://api.lykuro.ai/deepseek/v1` | `deepseek-chat`, `deepseek-reasoner` |
+| Kimi | `https://api.lykuro.ai/kimi/v1` | `kimi-k2.5`, `kimi-k3` |
+| OpenAI | `https://api.lykuro.ai/openai/v1` | `gpt-5.5`, `gpt-5.4-mini` |
+| Anthropic（OpenAI互換レイヤー） | `https://api.lykuro.ai/anthropic/v1` | `claude-sonnet-5`, `claude-haiku-4-5` |
+| Google Gemini | `https://api.lykuro.ai/google/v1beta/openai` | `gemini-2.5-flash`, `gemini-3.6-flash` |
 
 ## Python
 

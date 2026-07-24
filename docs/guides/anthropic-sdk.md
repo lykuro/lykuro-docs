@@ -13,6 +13,8 @@ Lykuro AI は Anthropic Messages API を**ネイティブ透過**します。上
 |---|---|---|
 | Alibaba/Qwen | `https://api.lykuro.ai/alibaba/apps/anthropic` | `qwen3-max`, `qwen-max` |
 | DeepSeek | `https://api.lykuro.ai/deepseek/anthropic` | `deepseek-chat` |
+| Anthropic（Claude 公式） | `https://api.lykuro.ai/anthropic` | `claude-sonnet-5`, `claude-opus-4-8` |
+| Kimi | `https://api.lykuro.ai/kimi/anthropic` | `kimi-k2.5`, `kimi-k3` |
 
 :::note 認証ヘッダー
 Anthropic 系クライアントは API キーを `x-api-key` ヘッダーで送ります。Lykuro はこれを受理します
@@ -68,4 +70,4 @@ model.base_url = https://api.lykuro.ai/deepseek/anthropic
 ```
 
 API キーは各ツールの設定（`x-api-key` 相当）に `lk_live_...` を指定します。
-`model` には上流ネイティブ名（`qwen3-max`, `deepseek-chat` 等）を指定してください。
+`model` には上流ネイティブ名（`qwen3-max`, `deepseek-chat`, `claude-sonnet-5`, `kimi-k2.5` 等）を指定してください。

@@ -19,7 +19,7 @@ Lykuro AI は OpenAI / Anthropic **互換**の API を**透過プロキシ**で�
 ## 2. base_url の決め方
 
 base_url は **`https://api.lykuro.ai/{プロバイダ}/{上流パス}`** の形です。
-先頭の `/{プロバイダ}` で上流（DeepSeek / Alibaba）を選び、残りはそのまま上流に届きます。
+先頭の `/{プロバイダ}` で上流（DeepSeek / Alibaba / Kimi / OpenAI / Anthropic / Google）を選び、残りはそのまま上流に届きます。
 
 | 使い方 | base_url |
 |---|---|
@@ -27,10 +27,16 @@ base_url は **`https://api.lykuro.ai/{プロバイダ}/{上流パス}`** の形
 | OpenAI SDK（Alibaba/Qwen） | `https://api.lykuro.ai/alibaba/compatible-mode/v1` |
 | Anthropic SDK（DeepSeek） | `https://api.lykuro.ai/deepseek/anthropic` |
 | Anthropic SDK（Alibaba/Qwen） | `https://api.lykuro.ai/alibaba/apps/anthropic` |
+| OpenAI SDK（Kimi） | `https://api.lykuro.ai/kimi/v1` |
+| OpenAI SDK（OpenAI 公式） | `https://api.lykuro.ai/openai/v1` |
+| OpenAI SDK（Anthropic 互換レイヤー） | `https://api.lykuro.ai/anthropic/v1` |
+| OpenAI SDK（Google Gemini） | `https://api.lykuro.ai/google/v1beta/openai` |
+| Anthropic SDK（Claude 公式） | `https://api.lykuro.ai/anthropic` |
+| Anthropic SDK（Kimi） | `https://api.lykuro.ai/kimi/anthropic` |
 | リアルタイム音声（WSS） | `wss://api.lykuro.ai/alibaba/api-ws/v1/realtime` |
 
 :::tip モデル名
-`model` には**上流ネイティブのモデル名**を指定します（例: `deepseek-chat`, `qwen-turbo`）。
+`model` には**上流ネイティブのモデル名**を指定します（例: `deepseek-chat`, `qwen-turbo`, `kimi-k2.5`, `gpt-5.5`, `claude-sonnet-5`, `gemini-2.5-flash`）。
 プロバイダは base_url で指定済みなので、`alibaba/` のような接頭辞は付けません。
 利用可能なモデルは [モデル一覧](./reference/models) を参照してください。
 :::

@@ -110,12 +110,14 @@ function chatParams(m: ModelLike): ApiParam[] {
   if (m.features.includes("thinking")) {
     if (m.provider === "deepseek") {
       params.push({ name: "thinking", type: "object", desc: "思考モード切替。`{\"type\": \"enabled\"}`（extra_body 経由）" });
-    } else {
+    } else if (m.provider === "alibaba") {
       params.push(
         { name: "enable_thinking", type: "boolean", desc: "思考モードを有効化（extra_body 経由）" },
         { name: "thinking_budget", type: "integer", desc: "思考に使う最大トークン数（extra_body 経由）" },
       );
     }
+    // kimi / anthropic / google: 思考モードの切替パラメータは上流仕様に依存する
+    // ため列挙しない（各プロバイダ公式ドキュメント参照）
   }
   return params;
 }
