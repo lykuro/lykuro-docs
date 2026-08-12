@@ -36,6 +36,13 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: "category",
+      label: "ローカルLLM（オンプレミス）",
+      collapsible: true,
+      collapsed: true,
+      items: ["guides/local-llm-install"],
+    },
+    {
+      type: "category",
       label: "サンプル集（Cookbook）",
       collapsible: true,
       collapsed: false,
