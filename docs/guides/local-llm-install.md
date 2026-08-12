@@ -76,18 +76,22 @@ LYKURO_ADMIN_ENABLED=true private-gateway serve -config gateway.yaml
 
 「Runtime 検出」タブでローカルホスト(または CIDR 指定、最大 /22)を走査し、発見した Runtime を承認操作(取込)で設定へ追加できます。取込するまで発見済み Runtime へは一切接続しません。
 
-### 5. 管理コンソール(SaaS)接続 — 任意機能
+### 5. Lykuro で外部提供 — 任意機能
 
-Gateway は単体で完結して動作します。複数拠点の一元管理・署名済み設定配信を使う場合のみ、環境変数で Control Plane へ接続します(未設定ならスタンドアロン動作)。
+Gateway は単体で完結して動作します。Gateway 上のローカルモデルを **Lykuro 経由で外部に有償提供**したい場合のみ、Lykuro ダッシュボードの**「ローカルLLM」**メニュー(一般・企業アカウント共通)から登録します。
 
-| 環境変数 | 値 |
-|----------|-----|
-| `LYKURO_CONTROL_PLANE_URL` | Control Plane のベースURL |
-| `LYKURO_DATA_DIR` | Agent資格情報・設定世代の保存先(既定 `/var/lib/lykuro/gateway`) |
-| `LYKURO_SIGNING_PUB_FILE` | 配信設定の署名検証用 Ed25519 公開鍵 |
-| `LYKURO_INSTALL_TOKEN_FILE` | 初回登録トークンのファイルパス |
+1. Gateway 側で Virtual Key を発行します(`private-gateway genkey` または管理画面)
+2. ダッシュボード「ローカルLLM」→「新規登録」で **名称 / Gateway URL / Virtual Key / 環境** を入力します。登録時に Lykuro が `GET /v1/models` で疎通確認し、成功すると即座に利用可能になります
+3. 同期されたモデルごとに**公開 ON/OFF と価格(JPY / 1M トークン、入力・出力別)**を設定します。公開したモデルは以下のURLで、**任意の Lykuro アカウントの API キー**から利用できます
 
-初回登録トークンは管理コンソールの Gateway 詳細画面で発行し(有効期限24時間・1回限り)、ファイルへ保存して渡します。shell 引数・環境変数へ直接書かないでください。
+```text
+https://api.lykuro.ai/pgw/{slug}/v1/chat/completions
+```
+
+- 利用者にはあなたが設定した価格で課金され、売上はプラットフォーム手数料(12%)控除後にあなたの口座残高へ加算されます
+- モデル一覧は Lykuro が5分間隔で自動同期します(手動同期も可)
+- 前提: Gateway は Lykuro(インターネット側)から **HTTPS で到達可能**である必要があります
+- 中継はリクエスト・レスポンス無改変の透過方式で、プロンプト本文は保存されません(Zero-Retention)
 
 Docker Compose(`deploy/docker-compose.example.yaml`)・Kubernetes Helm(`deploy/helm/lykuro-private-gateway/`)でのデプロイも任意で選べます。
 
@@ -207,4 +211,4 @@ private-gateway init -config gateway.yaml     # 自動検出して設定生成
 # 読み取り専用の確認のみなら: private-gateway discover
 ```
 
-検出は `/api/version` の engine フィールドで `lykuro_native` を識別します。取込後、Gateway の Virtual Key 経由で OpenAI 互換 API として社内へ提供できます。SaaS 管理コンソールから Gateway を登録する場合は、登録フォームの Runtime Adapter で「Lykuro Native Inference Engine」を選択してください。
+検出は `/api/version` の engine フィールドで `lykuro_native` を識別します。取込後、Gateway の Virtual Key 経由で OpenAI 互換 API として社内へ提供できます。さらに Lykuro 経由で外部提供したい場合は、上記「[Lykuro で外部提供](#5-lykuro-で外部提供--任意機能)」の手順でダッシュボードの「ローカルLLM」へ登録してください。
