@@ -80,9 +80,13 @@ LYKURO_ADMIN_ENABLED=true private-gateway serve -config gateway.yaml
 
 Gateway は単体で完結して動作します。Gateway 上のローカルモデルを **Lykuro 経由で外部に有償提供**したい場合のみ、Lykuro ダッシュボードの**「ローカルLLM」**メニュー(一般・企業アカウント共通)から登録します。
 
+:::note Native-LLM-Platform 以外も登録できます
+「ローカルLLM」に登録できるのは Native-LLM-Platform に限りません。`GET /v1/models` と Bearer 認証に応答する任意の OpenAI 互換 Gateway / Runtime(vLLM、Ollama、TGI、LM Studio など)を同じ手順で登録・外部提供できます(認証の無い Runtime はキー欄に任意の文字列を入力)。
+:::
+
 1. Gateway 側で Virtual Key を発行します(`private-gateway genkey` または管理画面)
-2. ダッシュボード「ローカルLLM」→「新規登録」で **名称 / Gateway URL / Virtual Key / 環境** を入力します。登録時に Lykuro が `GET /v1/models` で疎通確認し、成功すると即座に利用可能になります
-3. 同期されたモデルごとに**公開 ON/OFF と価格(JPY / 1M トークン、入力・出力別)**を設定します。公開したモデルは以下のURLで、**任意の Lykuro アカウントの API キー**から利用できます
+2. **Gateway の登録は Lykuro 運営が行います。** Gateway の URL と Virtual Key を添えてお問い合わせください。登録時に Lykuro が `GET /v1/models` で疎通確認し、成功すると即座に利用可能になります
+3. 登録後、ダッシュボードの「ローカルLLM」で、同期されたモデルごとに**公開 ON/OFF と価格(JPY / 1M トークン、入力・出力別)**を設定します。公開したモデルは以下のURLで、**任意の Lykuro アカウントの API キー**から利用できます
 
 ```text
 https://api.lykuro.ai/pgw/{slug}/v1/chat/completions
