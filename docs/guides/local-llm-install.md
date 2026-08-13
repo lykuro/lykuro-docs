@@ -76,24 +76,23 @@ LYKURO_ADMIN_ENABLED=true private-gateway serve -config gateway.yaml
 
 「Runtime 検出」タブでローカルホスト(または CIDR 指定、最大 /22)を走査し、発見した Runtime を承認操作(取込)で設定へ追加できます。取込するまで発見済み Runtime へは一切接続しません。
 
-### 5. Lykuro で外部提供 — 任意機能
+### 5. Lykuro からの提供 — 任意
 
-Gateway は単体で完結して動作します。Gateway 上のローカルモデルを **Lykuro 経由で外部に有償提供**したい場合のみ、Lykuro ダッシュボードの**「ローカルLLM」**メニュー(一般・企業アカウント共通)から登録します。
+Gateway は単体で完結して動作します。Gateway 上のローカルモデルは、Lykuro が**上位プロバイダーの一つとして**(DeepSeek や Qwen と同じ仕組みで)Lykuro ユーザーへ提供できます。
 
-:::note Native-LLM-Platform 以外も登録できます
-「ローカルLLM」に登録できるのは Native-LLM-Platform に限りません。`GET /v1/models` と Bearer 認証に応答する任意の OpenAI 互換 Gateway / Runtime(vLLM、Ollama、TGI、LM Studio など)を同じ手順で登録・外部提供できます(認証の無い Runtime はキー欄に任意の文字列を入力)。
+:::note Native-LLM-Platform 以外も接続できます
+接続できるのは Native-LLM-Platform に限りません。`GET /v1/models` と Bearer 認証に応答する任意の OpenAI 互換 Gateway / Runtime(vLLM、Ollama、TGI、LM Studio など)を同様に扱えます(認証の無い Runtime はキー欄に任意の文字列)。
 :::
 
-1. Gateway 側で Virtual Key を発行します(`private-gateway genkey` または管理画面)
-2. **Gateway の登録・モデルの公開・価格設定は Lykuro 運営が行います。** Gateway の URL・Virtual Key・公開したいモデルと希望価格(JPY / 1M トークン、入力・出力別)を添えてお問い合わせください。登録時に Lykuro が `GET /v1/models` で疎通確認し、モデル一覧は以後5分間隔で自動同期されます
-3. 公開されたモデルは、**全 Lykuro ユーザー**のダッシュボード「ローカルLLM」カタログに掲載され、以下のURLで**任意の Lykuro アカウントの API キー**から利用できます
+- 接続先・提供モデル・価格の設定は **Lykuro 運営**が行います(Gateway の URL と API キーを添えてお問い合わせください)。モデル一覧は5分間隔で自動同期されます
+- 提供されたモデルは、**全 Lykuro ユーザー**のダッシュボード「ローカルLLM」カタログに掲載され、以下のURLで**任意の Lykuro アカウントの API キー**から利用できます
 
 ```text
 https://api.lykuro.ai/pgw/{slug}/v1/chat/completions
 ```
 
-- 利用者には設定価格で課金され、売上はプラットフォーム手数料(12%)控除後にあなたの口座残高へ加算されます
-- 前提: Gateway は Lykuro(インターネット側)から **HTTPS で到達可能**である必要があります
+- 利用者には Lykuro が設定価格で課金します(Gateway 提供元との商流は Lykuro システム外で取り決めます)
+- 前提: Gateway は Lykuro(インターネット側)から到達可能である必要があります
 - 中継はリクエスト・レスポンス無改変の透過方式で、プロンプト本文は保存されません(Zero-Retention)
 
 Docker Compose(`deploy/docker-compose.example.yaml`)・Kubernetes Helm(`deploy/helm/lykuro-private-gateway/`)でのデプロイも任意で選べます。
@@ -214,4 +213,4 @@ private-gateway init -config gateway.yaml     # 自動検出して設定生成
 # 読み取り専用の確認のみなら: private-gateway discover
 ```
 
-検出は `/api/version` の engine フィールドで `lykuro_native` を識別します。取込後、Gateway の Virtual Key 経由で OpenAI 互換 API として社内へ提供できます。さらに Lykuro 経由で外部提供したい場合は、上記「[Lykuro で外部提供](#5-lykuro-で外部提供--任意機能)」の手順でダッシュボードの「ローカルLLM」へ登録してください。
+検出は `/api/version` の engine フィールドで `lykuro_native` を識別します。取込後、Gateway の Virtual Key 経由で OpenAI 互換 API として社内へ提供できます。さらに Lykuro のユーザーへ提供したい場合は、上記「[Lykuro からの提供](#5-lykuro-からの提供--任意)」を参照してください。
