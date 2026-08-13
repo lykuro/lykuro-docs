@@ -23,7 +23,7 @@
         "thinking",
         "tools"
       ],
-      "price": "入力 $0.14 / 出力 $0.28 (1M・キャッシュミス)",
+      "price": "入力 $0.44 / 出力 $1.32 (1M・キャッシュミス)",
       "docUrl": "https://api-docs.deepseek.com/"
     },
     {
@@ -40,7 +40,7 @@
         "thinking",
         "tools"
       ],
-      "price": "入力 $0.435 / 出力 $0.87 (1M・キャッシュミス)",
+      "price": "入力 $1.32 / 出力 $3.96 (1M・キャッシュミス)",
       "docUrl": "https://api-docs.deepseek.com/"
     },
     {
