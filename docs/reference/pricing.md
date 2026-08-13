@@ -21,8 +21,8 @@ Alibaba (Qwen) 系は **International（シンガポール）デプロイ**の�
 
 | プロバイダ | 代表モデル | 入力（USD / 1M） | 出力（USD / 1M） | 備考 |
 |---|---|---|---|---|
-| DeepSeek | `deepseek-v4-flash`（別名 `deepseek-chat` / `deepseek-reasoner`） | $0.14 | $0.28 | キャッシュヒット入力 $0.0028 |
-| DeepSeek | `deepseek-v4-pro` | $0.435 | $0.87 | キャッシュヒット入力 $0.003625 |
+| DeepSeek | `deepseek-v4-flash`（別名 `deepseek-chat` / `deepseek-reasoner`） | $0.44 | $1.32 | キャッシュヒット入力 $0.014。2026-08-14 改定（上流の2026-08-16価格改定に対応） |
+| DeepSeek | `deepseek-v4-pro` | $1.32 | $3.96 | キャッシュヒット入力 $0.044。2026-08-14 改定（同上） |
 | Alibaba | `qwen-flash` | $0.05 | $0.40 | |
 | Alibaba | `qwen-turbo` | $0.044 | $0.087 | |
 | Alibaba | `qwen-plus` | $0.40 | $1.20 | |
